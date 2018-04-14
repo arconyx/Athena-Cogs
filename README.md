@@ -1,2 +1,2 @@
 # Athena-Cogs
-Random cogs for Red-DiscordBot that I have created.
+Random cogs I have created for Red-DiscordBot.
