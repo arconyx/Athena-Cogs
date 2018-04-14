@@ -1,9 +1,9 @@
-import discord
 from discord.ext import commands
 import os
 from .utils.dataIO import dataIO
 from uuid import uuid4 as uuid
 import asyncio
+
 
 class Game:
     def __init__(self, game_ID):
@@ -19,6 +19,7 @@ class Game:
     def get_players(self):
         return self.players
 
+
 class Player:
     def __init__(self, discord_user):
         self.user = discord_user
@@ -27,6 +28,7 @@ class Player:
 
     def get_name(self):
         return self.name
+
 
 class MafiaBoss:
     def __init__(self, bot):
@@ -46,17 +48,18 @@ class MafiaBoss:
         clean = []
         for user in self.game.get_players():
             clean.append(user.get_name())
-        player_list = ', '.join(clean)
-        await self.bot.say('**Current Players:**\n{}'.format(player_list))
+        player_lst = ', '.join(clean)
+        await self.bot.say('**Current Mafia Players:**\n{}'.format(player_lst))
 
     # Commands to start game
     @_mafia.command(pass_context=True, no_PM=True)
     async def create(self, ctx):
         """Creates a new game of mafia"""
         self.game = Game(uuid)
-        await self.bot.say('@here Mafia game starting! Use `!mafia join` to join the lobby.')
+        await self.bot.say('''@here Mafia game starting! Use `!mafia join` to
+                           join the lobby.''')
         await asyncio.sleep(self.settings['LOBBY_DURATION'])
-        start_game(self.game)
+#        start_game(self.game)
 
     @_mafia.command(pass_context=True)
     async def join(self, ctx):
@@ -65,9 +68,9 @@ class MafiaBoss:
         try:
             self.game.add_player(player)
         except ValueError:
-            'Player {} already in game'.format(player.mention)
+            'Player {} already in game'.format(player)
             return
-        await self.bot.say('{} added to players.'.format(player.mention))
+        await self.bot.say('{} added to players.'.format(player))
 
     # Command group to set settings
     @commands.group(pass_context=True, name='mafiaset')
@@ -91,10 +94,12 @@ def setup(bot):
     n = MafiaBoss(bot)
     bot.add_cog(n)
 
+
 def check_folder():
     if not os.path.exists('data/mafia'):
         print('Creating data/mafia folder...')
         os.makedirs('data/mafia')
+
 
 def check_file():
     data = {}
