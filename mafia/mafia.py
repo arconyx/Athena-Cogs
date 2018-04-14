@@ -23,7 +23,7 @@ class Player:
     def __init__(self, discord_user):
         self.user = discord_user
         self.role = None
-        self.name = user.name
+        self.name = self.user.name
 
     def get_name(self):
         return self.name
