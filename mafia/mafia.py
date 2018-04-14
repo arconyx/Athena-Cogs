@@ -16,13 +16,17 @@ class Game:
         else:
             self.players.append(Player(discord_user))
 
-    def get_players():
+    def get_players(self):
         return self.players
 
 class Player:
-    def __init__(self, discord_id):
-        self.discordid = discordid
+    def __init__(self, discord_user):
+        self.user = discord_user
         self.role = None
+        self.name = user.name
+
+    def get_name(self):
+        return self.name
 
 class MafiaBoss:
     def __init__(self, bot):
@@ -39,7 +43,11 @@ class MafiaBoss:
     # Utility/general commands
     @_mafia.command(name="list", pass_context=True)
     async def list_players(self, ctx):
-        players = self.game.get_players()
+        clean = []
+        for user in self.game.players.get_players():
+            clean.append(user.getname())
+        player_list = ', '.join(clean)
+        await self.bot.say('**Current Players:**\n{}'.format(player_list))
 
     # Commands to start game
     @_mafia.command(pass_context=True, no_PM=True)
