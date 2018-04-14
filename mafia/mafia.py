@@ -44,7 +44,7 @@ class MafiaBoss:
     @_mafia.command(name="list", pass_context=True)
     async def list_players(self, ctx):
         clean = []
-        for user in self.game.players.get_players():
+        for user in self.game.get_players():
             clean.append(user.getname())
         player_list = ', '.join(clean)
         await self.bot.say('**Current Players:**\n{}'.format(player_list))
