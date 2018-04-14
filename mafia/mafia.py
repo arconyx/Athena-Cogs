@@ -14,16 +14,15 @@ class Game:
         if discord_user in self.players:
             raise ValueError('Player already in list.')
         else:
-            self.players.append(discord_user)
+            self.players.append(Player(discord_user))
 
     def get_players():
-        pass
+        return self.players
 
 class Player:
     def __init__(self, discord_id):
         self.discordid = discordid
         self.role = None
-
 
 class MafiaBoss:
     def __init__(self, bot):
@@ -38,9 +37,9 @@ class MafiaBoss:
             await self.bot.send_cmd_help(ctx)
 
     # Utility/general commands
-    @_mafia.commands(name="list", pass_context=True)
+    @_mafia.command(name="list", pass_context=True)
     async def list_players(self, ctx):
-        pass
+        players = self.game.get_players()
 
     # Commands to start game
     @_mafia.command(pass_context=True, no_PM=True)
