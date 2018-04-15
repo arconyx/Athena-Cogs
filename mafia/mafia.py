@@ -51,10 +51,10 @@ class Game:
 
     def start(self):
         self.lobbyOpen = False
-        self.players = self.assign_roles()
+        self.assign_roles()
 
     def assign_roles(self):
-        total_players, unassigned = len(self.players)
+        total_players = unassigned = len(self.players)
         for role in self.roles:
             if isinstance(role, Town):
                 town = role
@@ -65,14 +65,13 @@ class Game:
                 self.players_per_role[role] = amount
                 unassigned -= amount
         self.players_per_role[town] = unassigned
-        players = shuffle(self.players)
+        shuffle(self.players)
         index = 0
         for role, amount in self.players_per_role.items():
             while amount > 0 and index < total_players:
-                players[index].role = role
+                self.players[index].role = role
                 index += 1
                 amount -= 1
-        return players
 
 
 class MafiaBoss:
@@ -115,7 +114,8 @@ class MafiaBoss:
         await self.bot.say('@here Mafia game starting! Use `!mafia join` to'
                            ' join the lobby.')
         await asyncio.sleep(self.settings['LOBBY_DURATION'])
-        self.start_game(ctx)
+        self.game.start()
+        await self.bot.say('Game started.')
 
         # TODO: Set minimum no of players
 
@@ -129,12 +129,6 @@ class MafiaBoss:
             'Player {} already in game'.format(player.name)
             return
         await self.bot.say('{} added to players.'.format(player.name))
-
-    @_mafia.command(pass_context=True, name='start')
-    async def start_game(self, ctx):
-        """Closes lobby and begins game. What else did you expect?"""
-        self.game.start()
-        await self.bot.say('Game started.')
 
     # Command group to set settings
     @commands.group(pass_context=True, name='mafiaset')
