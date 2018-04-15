@@ -49,12 +49,9 @@ class Game:
         else:
             self.players.append(Player(discord_user))
 
-    def close_lobby(self):
-        self.lobbyOpen = False
-
     def start(self):
-        self.close_lobby()
-        self.assign_roles()
+        self.lobbyOpen = False
+        self.players = self.assign_roles()
         MafiaBoss.print_roles()
 
     def assign_roles(self):
@@ -76,7 +73,7 @@ class Game:
                 players[index].role = role
                 index += 1
                 amount -= 1
-        self.players = players
+        return players
 
 
 class MafiaBoss:
@@ -107,7 +104,7 @@ class MafiaBoss:
         """Lists the name and role of all players in the game."""
         clean = []
         for user in self.game.players:
-            clean.append(user.name + ' (' + user.role.name + ')')
+            clean.append(user.name + ' (' + user.role + ')')
         player_lst = ', '.join(clean)
         await self.bot.say('**Current Mafia Players:**\n{}'.format(player_lst))
 
