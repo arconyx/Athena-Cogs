@@ -52,7 +52,6 @@ class Game:
     def start(self):
         self.lobbyOpen = False
         self.players = self.assign_roles()
-        MafiaBoss.print_roles()
 
     def assign_roles(self):
         total_players, unassigned = len(self.players)
@@ -104,7 +103,7 @@ class MafiaBoss:
         """Lists the name and role of all players in the game."""
         clean = []
         for user in self.game.players:
-            clean.append(user.name + ' (' + user.role + ')')
+            clean.append(user.name + ' (' + user.role.name + ')')
         player_lst = ', '.join(clean)
         await self.bot.say('**Current Mafia Players:**\n{}'.format(player_lst))
 
@@ -134,6 +133,7 @@ class MafiaBoss:
     async def start_game(self, game):
         """Closes lobby and begins game. What else did you expect?"""
         game.start()
+        await self.bot.say('Game started.')
         # Wait, if all it does is this, why is is seperate?
         # Good question.
         # I suspect I will want to do more stuff here later
