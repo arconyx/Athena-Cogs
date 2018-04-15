@@ -115,7 +115,7 @@ class MafiaBoss:
         await self.bot.say('@here Mafia game starting! Use `!mafia join` to'
                            ' join the lobby.')
         await asyncio.sleep(self.settings['LOBBY_DURATION'])
-        self.start_game(self.game)
+        self.start_game(ctx)
 
         # TODO: Set minimum no of players
 
@@ -130,13 +130,11 @@ class MafiaBoss:
             return
         await self.bot.say('{} added to players.'.format(player.name))
 
-    async def start_game(self, game):
+    @_mafia.command(pass_context=True, name='start')
+    async def start_game(self, ctx):
         """Closes lobby and begins game. What else did you expect?"""
-        game.start()
+        self.game.start()
         await self.bot.say('Game started.')
-        # Wait, if all it does is this, why is is seperate?
-        # Good question.
-        # I suspect I will want to do more stuff here later
 
     # Command group to set settings
     @commands.group(pass_context=True, name='mafiaset')
