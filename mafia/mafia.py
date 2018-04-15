@@ -1,3 +1,4 @@
+import discord
 from discord.ext import commands
 import os
 from .utils.dataIO import dataIO
@@ -51,17 +52,25 @@ class Game:
         self.roles = [Town(), Mafiaso()]
         self.players_per_role = {}
 
-    def add_player(self, discord_user):
+    async def add_player(self, discord_user):
         if discord_user in self.players:
             raise ValueError('Player is already in list.')
         else:
             self.players.append(Player(discord_user))
 
-    def start(self):
-        self.lobbyOpen = False
-        self.assign_roles()
+    async def find_player(self, member):
+        for player in self.game.players:
+            if player.user == member:
+                index = self.game.players.index(player.user)
+                return player.user, index
 
-    def assign_roles(self):
+    async def start(self, bot, channel):
+        self.lobbyOpen = False
+        self.bot = bot
+        self.channel = channel
+        await self.assign_roles()
+
+    async def assign_roles(self):
         total_players = unassigned = len(self.players)
         for role in self.roles:
             if isinstance(role, Town):
@@ -81,11 +90,22 @@ class Game:
                 index += 1
                 amount -= 1
 
+    async def night(self, bot):
+        self.bot.send_message(self.channel, 'Night has fallen. PM me actions.')
+        await asyncio.sleep(120)  # TODO: Make this into a setting
+
 
 class MafiaBoss:
     def __init__(self, bot):
         self.bot = bot
         self.settings = dataIO.load_json('data/mafia/settings.json')
+
+    # Interal functions
+    async def role_alert(self):
+        for player in self.game.players:
+            await self.bot.send_message(player.user,
+                                        'You are a {}.'
+                                        .format(player.role.name.lower()))
 
     # Game commands group
     @commands.group(name="mafia", pass_context=True)
@@ -123,13 +143,10 @@ class MafiaBoss:
                            ' join the lobby.')
         await asyncio.sleep(self.settings['LOBBY_DURATION'])
         if len(self.game.players) >= self.settings['MIN_PLAYERS']:
-            self.game.start()
-            for player in self.game.players:
-                await self.bot.send_message(player.user,
-                                            'You are a {}.'
-                                            .format(player.role.name.lower()))
             await self.bot.say('Game started.')
+            await self.game.start(self, ctx.message.channel)
         else:
+            # This should do more, like close the lobby or something
             await self.bot.say('Unable to start game.'
                                'A minimum of {} players are needed.'
                                .format(self.settings['MIN_PLAYERS']))
@@ -144,6 +161,15 @@ class MafiaBoss:
             'Player {} already in game'.format(player.name)
             return
         await self.bot.say('{} added to players.'.format(player.name))
+
+    # Commands for game actions
+    @_mafia.command(pass_context=True)
+    async def kill(self, ctx, member: discord.Member):
+        player = self.game.find_player(member)
+        if isinstance(player.role, Mafiaso):
+            pass  # TODO: Make this do something
+        else:
+            await self.bot.say('Hey, you aren\'t in the mafia!')
 
     # Command group to set settings
     @commands.group(pass_context=True, name='mafiaset')
