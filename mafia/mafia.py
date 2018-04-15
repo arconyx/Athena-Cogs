@@ -25,7 +25,7 @@ class Role:
 class Town(Role):
     def __init__(self):
         super(Town, self).__init__()
-        self.name = 'Town'
+        self.name = 'Townperson'
         self.percentage = 0.8
         self.minimum = 0
 
@@ -58,11 +58,10 @@ class Game:
         self.living = []
         self.mafiaVote = {}
 
-    async def find_player(self, member):
-        for player in self.game.players:
-            if player.user == member:
-                index = self.game.players.index(player.user)
-                return player.user, index
+    def find_player(self, member):
+        for player in self.players:
+            if player.user.name == member.name:
+                return player
 
     async def start(self):
         self.lobbyOpen = False
@@ -101,14 +100,14 @@ class MafiaBoss:
         for player in self.game.players:
             role = player.role
             name = player.role.name.lower()
+            await self.bot.send_message(player.user,
+                                        'You are a {}.'
+                                        .format(name))
             if isinstance(role, Mafiaso):
                 fellows = []
                 for player in role.players:
                     fellows.append(player.name)
                 mafia = ', '.join(fellows)
-                await self.bot.send_message(player.user,
-                                            'You are a {}.'
-                                            .format(name))
                 if fellows == '':
                     await self.bot.send_message(player.user,
                                                 'You are the only mafiaso.')
@@ -188,13 +187,14 @@ class MafiaBoss:
     # Commands for game actions
     @_mafia.command(pass_context=True)
     async def kill(self, ctx, member: discord.Member):
-        player = self.game.find_player(member)
+        player = self.game.find_player(member)  # async/await this
         if not isinstance(player.role, Mafiaso):
             await self.bot.say('Hey, you aren\'t in the mafia!')
         elif self.game.isNight is False:
             await self.bot.say('You can only do that at night.')
         else:
             self.mafiaVote[player] += 1
+            await self.bot.say('Voted for {}'.format(player.name))
 
     # Command group to set settings
     @commands.group(pass_context=True, name='mafiaset')
