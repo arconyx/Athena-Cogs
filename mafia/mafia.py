@@ -3,6 +3,7 @@ import os
 from .utils.dataIO import dataIO
 from uuid import uuid4 as uuid
 import asyncio
+from random import shuffle
 
 
 class Player:
@@ -13,10 +14,25 @@ class Player:
 
 
 class Role:
-    def __init__(self, name, percentage):
-        self.name = name
-        self.percentage = percentage
-        self.amount = 0  # later set as percentage * total population
+    def __init__(self):
+        self.name = 'GenericRole'
+        self.percentage = '0'
+
+
+class Town(Role):
+    def __init__(self):
+        super(Mafiaso, self).__init__()
+        self.name = 'Town'
+        self.percentage = 0.8
+        self.minimum = 0
+
+
+class Mafiaso(Role):
+    def __init__(self):
+        super(Mafiaso, self).__init__()
+        self.name = 'Mafiaso'
+        self.percentage = 0.2
+        self.minimum = 1
 
 
 class Game:
@@ -24,7 +40,8 @@ class Game:
         self.id = game_ID
         self.players = []
         self.lobbyOpen = True
-        self.roles = [Role('Town', 0.8), Role('Mafia', 0.2)]
+        self.roles = [Town(), Mafiaso()]
+        self.players_per_role = {}
 
     def add_player(self, discord_user):
         if discord_user in self.players:
@@ -38,21 +55,27 @@ class Game:
     def start(self):
         self.close_lobby()
         self.assign_roles()
+        MafiaBoss.print_roles()
 
     def assign_roles(self):
-        total_players = len(self.players)
-        divisions = {}
-        for i in enumerate(self.roles):  # TODO: Improve wit variables
-            self.role(i).amount = total_players * self.role(i).percentage
-            divisions[self.role(i)] = total_players * self.role(i).percentage
-        for player in self.players:
-            for role, amount in divisions.items():
-                if amount > 0:
-                    player.role = role
-                    divisions[role] -= 1
-                    break
-                    # TODO: Verify this works
-                    # TODO: Randomise assignment of roles
+        total_players, unassigned = len(self.players)
+        for role in self.roles:
+            if isinstance(role, Town):
+                town = role
+            else:
+                amount = round(total_players * role.percentage)
+                if amount < role.minimum:
+                    amount = role.minimum
+                self.players_per_role[role] = amount
+                unassigned -= amount
+        self.players_per_role[town] = unassigned
+        players = shuffle(self.players)
+        index = 0
+        for role, amount in self.players_per_role.items():
+            while amount > 0 and index < total_players:
+                players[index].role = role
+                index += 1
+                amount -= 1
 
 
 class MafiaBoss:
@@ -70,9 +93,20 @@ class MafiaBoss:
     # Utility/general commands
     @_mafia.command(name="list", pass_context=True)
     async def list_players(self, ctx):
+        """Lists all players in the game by name."""
         clean = []
         for user in self.game.players:
             clean.append(user.name)
+        player_lst = ', '.join(clean)
+        await self.bot.say('**Current Mafia Players:**\n{}'.format(player_lst))
+
+    # For testing only
+    @_mafia.command(name="roles", pass_context=True, no_PM=True)
+    async def print_roles(self, ctx):
+        """Lists the name and role of all players in the game."""
+        clean = []
+        for user in self.game.players:
+            clean.append(user.name + ' (' + user.role.name + ')')
         player_lst = ', '.join(clean)
         await self.bot.say('**Current Mafia Players:**\n{}'.format(player_lst))
 
@@ -85,6 +119,8 @@ class MafiaBoss:
  join the lobby.''')
         await asyncio.sleep(self.settings['LOBBY_DURATION'])
         self.start_game(self.game)
+
+        # TODO: Set minimum no of players
 
     @_mafia.command(pass_context=True)
     async def join(self, ctx):
