@@ -35,6 +35,14 @@ class Mafiaso(Role):
         self.minimum = 1
 
 
+class Detective(Role):
+    def __init__(self):
+        super(Detective, self).__init__()
+        self.name = 'Detective'
+        self.percentage = 0.1
+        self.minimum = 1
+
+
 class Game:
     def __init__(self, game_ID):
         self.id = game_ID
@@ -87,7 +95,7 @@ class MafiaBoss:
             await self.bot.send_cmd_help(ctx)
 
     # Utility/general commands
-    @_mafia.command(name="list", pass_context=True)
+    @_mafia.command(name="players", pass_context=True)
     async def list_players(self, ctx):
         """Lists all players in the game by name."""
         clean = []
@@ -114,14 +122,16 @@ class MafiaBoss:
         await self.bot.say('@here Mafia game starting! Use `!mafia join` to'
                            ' join the lobby.')
         await asyncio.sleep(self.settings['LOBBY_DURATION'])
-        self.game.start()
-        for player in self.game.players:
-            await self.bot.send_message(player.user,
-                                        'You are a {}.'
-                                        .format(player.role.name.lower()))
-        await self.bot.say('Game started.')
-
-        # TODO: Set minimum no of players
+        if len(self.game.players) >= self.settings['MIN_PLAYERS']:
+            self.game.start()
+            for player in self.game.players:
+                await self.bot.send_message(player.user,
+                                            'You are a {}.'
+                                            .format(player.role.name.lower()))
+            await self.bot.say('Game started.')
+        else:
+            await self.bot.say('A minimum of {} players are needed.'
+                               .format(self.settings['MIN_PLAYERS']))
 
     @_mafia.command(pass_context=True)
     async def join(self, ctx):
@@ -148,6 +158,13 @@ class MafiaBoss:
         dataIO.save_json('data/mafia/settings.json', self.settings)
         await self.bot.say('Lobby period updated.')
 
+    @_mafiaset.command(name='lobbytimeout')
+    async def min_players(self, time: int):
+        """Minimum number of players to start game."""
+        self.settings['MIN_PLAYERS'] = time
+        dataIO.save_json('data/mafia/settings.json', self.settings)
+        await self.bot.say('Minimum players updated.')
+
 
 # Installation/Setup
 def setup(bot):
@@ -165,7 +182,8 @@ def check_folder():
 
 def check_file():
     data = {}
-    data['CHANNEL_ID'] = ''
+    data['LOBBY_DURATION'] = 60
+    data['MIN_PLAYERS'] = 4
     f = 'data/mafia/settings.json'
     if not dataIO.is_valid_json(f):
         print('Creating default settings.json...')
