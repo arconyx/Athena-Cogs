@@ -21,7 +21,7 @@ class Role:
 
 class Town(Role):
     def __init__(self):
-        super(Mafiaso, self).__init__()
+        super(Town, self).__init__()
         self.name = 'Town'
         self.percentage = 0.8
         self.minimum = 0
