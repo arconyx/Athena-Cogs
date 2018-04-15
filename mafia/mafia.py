@@ -76,6 +76,7 @@ class Game:
                 players[index].role = role
                 index += 1
                 amount -= 1
+        self.players = players
 
 
 class MafiaBoss:
@@ -115,8 +116,8 @@ class MafiaBoss:
     async def create(self, ctx):
         """Creates a new game of mafia"""
         self.game = Game(uuid)
-        await self.bot.say('''@here Mafia game starting! Use `!mafia join` to
- join the lobby.''')
+        await self.bot.say('@here Mafia game starting! Use `!mafia join` to'
+                           ' join the lobby.')
         await asyncio.sleep(self.settings['LOBBY_DURATION'])
         self.start_game(self.game)
 
@@ -129,9 +130,9 @@ class MafiaBoss:
         try:
             self.game.add_player(player)
         except ValueError:
-            'Player {} already in game'.format(player)
+            'Player {} already in game'.format(player.name)
             return
-        await self.bot.say('{} added to players.'.format(player))
+        await self.bot.say('{} added to players.'.format(player.name))
 
     async def start_game(self, game):
         """Closes lobby and begins game. What else did you expect?"""
