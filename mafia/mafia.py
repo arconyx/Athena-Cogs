@@ -115,6 +115,10 @@ class MafiaBoss:
                            ' join the lobby.')
         await asyncio.sleep(self.settings['LOBBY_DURATION'])
         self.game.start()
+        for player in self.game.players:
+            await self.bot.send_message(player.user,
+                                        'You are a {}.'
+                                        .format(player.role.name.lower()))
         await self.bot.say('Game started.')
 
         # TODO: Set minimum no of players
