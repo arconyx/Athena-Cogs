@@ -9,7 +9,7 @@ from random import shuffle
 class Player:
     def __init__(self, discord_user):
         self.user = discord_user
-        self.role = None
+        self.role = Role()
         self.name = self.user.name
 
 
