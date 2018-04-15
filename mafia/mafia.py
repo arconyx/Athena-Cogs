@@ -45,7 +45,7 @@ class Game:
 
     def add_player(self, discord_user):
         if discord_user in self.players:
-            raise ValueError('Player already in list.')
+            raise ValueError('Player is already in list.')
         else:
             self.players.append(Player(discord_user))
 
