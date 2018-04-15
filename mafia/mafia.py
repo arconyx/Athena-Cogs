@@ -130,7 +130,8 @@ class MafiaBoss:
                                             .format(player.role.name.lower()))
             await self.bot.say('Game started.')
         else:
-            await self.bot.say('A minimum of {} players are needed.'
+            await self.bot.say('Unable to start game.'
+                               'A minimum of {} players are needed.'
                                .format(self.settings['MIN_PLAYERS']))
 
     @_mafia.command(pass_context=True)
@@ -151,14 +152,14 @@ class MafiaBoss:
         if ctx.invoked_subcommand is None:
             await self.bot.send_cmd_help(ctx)
 
-    @_mafiaset.command(name='lobbytimeout')
+    @_mafiaset.command(name='lobby')
     async def lobby_duration(self, time: int):
         """Set time before game starts"""
         self.settings['LOBBY_DURATION'] = time
         dataIO.save_json('data/mafia/settings.json', self.settings)
         await self.bot.say('Lobby period updated.')
 
-    @_mafiaset.command(name='lobbytimeout')
+    @_mafiaset.command(name='min')
     async def min_players(self, time: int):
         """Minimum number of players to start game."""
         self.settings['MIN_PLAYERS'] = time
