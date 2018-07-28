@@ -28,7 +28,7 @@ class Chatterbot:
         try:
             conversation_id = self.conversations[ctx.message.channel.id]
         except KeyError:
-            conversation_id = self.chatterbot.create_conversation()
+            conversation_id = self.chatterbot.storage.create_conversation()
             self.conversations[ctx.message.channel.id] = conversation_id
         await self.bot.say(self.chatterbot.get_response(message, conversation_id))
 
@@ -87,7 +87,7 @@ class Chatterbot:
             try:
                 conversation_id = self.conversations[message.channel.id]
             except KeyError:
-                conversation_id = self.chatterbot.create_conversation()
+                conversation_id = self.chatterbot.storage.create_conversation()
                 self.conversations[message.channel.id] = conversation_id
             await self.bot.send_message(message.channel, self.chatterbot.get_response(message.content, conversation_id))
         else:
