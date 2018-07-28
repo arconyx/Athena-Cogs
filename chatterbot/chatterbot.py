@@ -19,12 +19,18 @@ class Chatterbot:
                       output_format="text",
                       logic_adapter=['chatterbot.logic.BestMatch']
                       )
+        self.conversations = {}
 
     @commands.command(pass_context=True)
     async def chat(self, ctx):
         """Reads messages from chat"""
         message = ctx.message.content[6:]
-        await self.bot.say(self.chatterbot.get_response(message))
+        try:
+            conversation_id = self.conversations[ctx.message.channel.id]
+        except KeyError:
+            conversation_id = self.chatterbot.create_conversation()
+            self.conversations[ctx.message.channel.id] = conversation_id
+        await self.bot.say(self.chatterbot.get_response(message, conversation_id))
 
     @commands.command()
     async def chattertrain(self):
@@ -71,12 +77,19 @@ class Chatterbot:
     async def listener(self, message):
         if message.author.id == self.bot.user.id:
             pass
+        elif message.content == '':
+            pass
         elif message.content[0] == '!': # Kludge
             pass
         elif message.mention_everyone == True or message.mentions != [] or message.role_mentions != []:
             pass
         elif message.channel.id == self.settings['CHANNEL_ID']:
-            await self.bot.send_message(message.channel, self.chatterbot.get_response(message.content))
+            try:
+                conversation_id = self.conversations[message.channel.id]
+            except KeyError:
+                conversation_id = self.chatterbot.create_conversation()
+                self.conversations[message.channel.id] = conversation_id
+            await self.bot.send_message(message.channel, self.chatterbot.get_response(message.content, conversation_id))
         else:
             pass
 
