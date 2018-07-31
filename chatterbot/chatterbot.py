@@ -6,13 +6,14 @@ from .utils import checks
 import os
 from chatterbot import ChatBot
 from chatterbot.trainers import ListTrainer
+from chatterbot.trainers import ChatterBotCorpusTrainer
 
 class Chatterbot:
     def __init__(self, bot):
         self.bot = bot
         self.settings = dataIO.load_json('data/chatterbot/settings.json')
         self.chatterbot = ChatBot('Athena',
-                      database='LanLogOne',
+                      database='LanLogFour',
                       storage_adapter='chatterbot.storage.MongoDatabaseAdapter',
                       input_adapter="chatterbot.input.VariableInputTypeAdapter",
                       output_adapter="chatterbot.output.OutputAdapter",
@@ -20,6 +21,7 @@ class Chatterbot:
                       logic_adapter=['chatterbot.logic.BestMatch']
                       )
         self.conversations = {}
+        self.previous_statement = {}
 
     @commands.command(pass_context=True)
     async def chat(self, ctx):
@@ -30,11 +32,13 @@ class Chatterbot:
         except KeyError:
             conversation_id = self.chatterbot.storage.create_conversation()
             self.conversations[ctx.message.channel.id] = conversation_id
-        await self.bot.say(self.chatterbot.get_response(message, conversation_id))
+        response = await self._get_response(message, conversation_id)
+        await self.bot.say(response)
 
     @commands.command()
-    async def chattertrain(self):
-        """Runs training on English corpus"""
+    @checks.is_owner()
+    async def chattertraindocs(self):
+        """Runs training on the docs"""
         self.chatterbot.set_trainer(ListTrainer)
         with open('data/chatterbot/doc1.txt') as f:
             doc1 = f.readlines()
@@ -46,6 +50,13 @@ class Chatterbot:
         docData = [x.strip('\n') for x in docData]
         self.chatterbot.train(docData)
         await self.bot.say("Training complete.")
+
+    @commands.command()
+    @checks.is_owner()
+    async def chattertrain(self):
+        self.chatterbot.set_trainer(ChatterBotCorpusTrainer)
+        self.chatterbot.train("chatterbot.corpus.english")
+        await self.bot.say("Training complete")
 
     @commands.command(no_pm=True, pass_context=True)
     @checks.serverowner_or_permissions(manage_server=True)
@@ -89,9 +100,28 @@ class Chatterbot:
             except KeyError:
                 conversation_id = self.chatterbot.storage.create_conversation()
                 self.conversations[message.channel.id] = conversation_id
-            await self.bot.send_message(message.channel, self.chatterbot.get_response(message.content, conversation_id))
+            response = await self._get_response(message.content, conversation_id)
+            await self.bot.send_message(message.channel, response)
         else:
             pass
+    
+    async def _get_response(self, input_item, conversation_id):
+        input_statement = self.chatterbot.input.process_input_statement(input_item)
+        # Preprocess the input statement
+        for preprocessor in self.chatterbot.preprocessors:
+            input_statement = preprocessor(self.chatterbot, input_statement)
+        statement, response = self.chatterbot.generate_response(input_statement, conversation_id)
+        # Learn that the user's input was a valid response to the chat bot's previous output
+        if not self.chatterbot.read_only:
+            if conversation_id in self.previous_statement:
+                prev = self.previous_statement[conversation_id]
+            else:
+                prev = None
+            self.chatterbot.learn_response(statement, prev)
+            self.chatterbot.storage.add_to_conversation(conversation_id, statement, response)
+            self.previous_statement[conversation_id] = response
+        # Process the response output with the output adapter
+        return str(response)
 
 def setup(bot):
     check_folder()
