@@ -19,11 +19,10 @@ class Chatterbot:
                                   input_adapter="chatterbot.input.VariableInputTypeAdapter",
                                   output_adapter="chatterbot.output.OutputAdapter",
                                   output_format="text",
-                                  logic_adapter=[
+                                  logic_adapters=[
                                       {'import_path': 'chatterbot.logic.BestMatch',
                                        'statement_comparison_function': 'chatterbot.comparisons.levenshtein_distance',
                                        'response_selection_method': 'chatterbot.response_selection.get_most_frequent_response'},
-                                      'chatterbot.logic.TimeLogicAdapter',
                                       'chatterbot.logic.MathematicalEvaluation'
                                       ]
                                   )
@@ -34,11 +33,7 @@ class Chatterbot:
     async def chat(self, ctx):
         """Reads messages from chat"""
         message = ctx.message.content[6:]
-        try:
-            conversation_id = self.conversations[ctx.message.channel.id]
-        except KeyError:
-            conversation_id = self.chatterbot.storage.create_conversation()
-            self.conversations[ctx.message.channel.id] = conversation_id
+        conversation_id = self._get_conversation(ctx.message.channel.id)
         response = await self._get_response(message, conversation_id)
         await self.bot.say(response)
 
@@ -89,6 +84,26 @@ class Chatterbot:
 
         await self.bot.say(message)
 
+    @commands.command(pass_context=True)
+    @checks.serverowner_or_permissions(manage_server=True)
+    async def chatterignore(self, context, channel: discord.Channel = None):
+        if channel:
+            self.settings['BLOCKED_CHANNELS'].append(channel.id)  # TODO: Check if already in list
+            dataIO.save_json('data/chatterbot/settings.json', self.settings)
+            message = '{} added to blocked channels.'.format(channel.mention)
+        elif not self.settings['BLOCKED_CHANNELS']:
+            message = 'No channels blocked'
+        # else:
+        #    channel = discord.utils.get(
+        #        self.bot.get_all_channels(), id=self.settings['BLOCKED_CHANNELS'])
+        #    if channel:
+        #        message = 'Current channel is {}'.format(channel.mention)
+        #    else:
+        #        self.settings['CHANNEL_ID'] = None
+        #        message = 'No channel set'
+
+        await self.bot.say(message)
+
     async def listener(self, message):
         if message.author.id == self.bot.user.id:
             pass
@@ -99,13 +114,16 @@ class Chatterbot:
         elif message.mention_everyone is True or message.mentions != [] or message.role_mentions != []:
             pass
         elif message.channel.id == self.settings['CHANNEL_ID']:
-            try:
-                conversation_id = self.conversations[message.channel.id]
-            except KeyError:
-                conversation_id = self.chatterbot.storage.create_conversation()
-                self.conversations[message.channel.id] = conversation_id
+            conversation_id = self._get_conversation(message.channel.id)
             response = await self._get_response(message.content, conversation_id)
             await self.bot.send_message(message.channel, response)
+        elif message.channel.id not in self.settings['BLOCKED_CHANNELS']:
+            conversation_id = self._get_conversation(message.channel.id)
+            if conversation_id in self.previous_statement:
+                self.learn_response(message.content, self.previous_statement[conversation_id])
+                self.previous_statement[conversation_id] = message.content
+            else:
+                self.previous_statement[conversation_id] = message.content
         else:
             pass
 
@@ -127,6 +145,14 @@ class Chatterbot:
         # Process the response output with the output adapter
         return str(response)
 
+    def _get_conversation(self, channel_id):
+        try:
+            conversation_id = self.conversations[channel_id]
+        except KeyError:
+            conversation_id = self.chatterbot.storage.create_conversation()
+            self.conversations[channel_id] = conversation_id
+        return conversation_id
+
 
 def setup(bot):
     check_folder()
@@ -145,6 +171,7 @@ def check_folder():
 def check_file():
     data = {}
     data['CHANNEL_ID'] = ''
+    data['BLOCKED_CHANNELS'] = []
     f = 'data/chatterbot/settings.json'
     if not dataIO.is_valid_json(f):
         print('Creating default settings.json...')
