@@ -119,11 +119,12 @@ class Chatterbot:
             await self.bot.send_message(message.channel, response)
         elif message.channel.id not in self.settings['BLOCKED_CHANNELS']:
             conversation_id = self._get_conversation(message.channel.id)
+            input_statement = self.chatterbot.input.process_input_statement(message.content)
             if conversation_id in self.previous_statement:
-                self.chatterbot.learn_response(message.content, self.previous_statement[conversation_id])
-                self.previous_statement[conversation_id] = message.content
+                self.chatterbot.learn_response(input_statement, self.previous_statement[conversation_id])
+                self.previous_statement[conversation_id] = input_statement
             else:
-                self.previous_statement[conversation_id] = message.content
+                self.previous_statement[conversation_id] = input_statement
         else:
             pass
 
