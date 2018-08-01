@@ -120,7 +120,7 @@ class Chatterbot:
         elif message.channel.id not in self.settings['BLOCKED_CHANNELS']:
             conversation_id = self._get_conversation(message.channel.id)
             if conversation_id in self.previous_statement:
-                self.learn_response(message.content, self.previous_statement[conversation_id])
+                self.chatterbot.learn_response(message.content, self.previous_statement[conversation_id])
                 self.previous_statement[conversation_id] = message.content
             else:
                 self.previous_statement[conversation_id] = message.content
