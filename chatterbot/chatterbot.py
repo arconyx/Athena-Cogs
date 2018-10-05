@@ -17,14 +17,22 @@ class Chatterbot:
         self.settings = dataIO.load_json('data/chatterbot/settings.json')
         self.chatterbot = ChatBot('Athena',
                                   database='LanLogFour',
-                                  storage_adapter='chatterbot.storage.MongoDatabaseAdapter',
-                                  input_adapter="chatterbot.input.VariableInputTypeAdapter",
-                                  output_adapter="chatterbot.output.OutputAdapter",
-                                  output_format="text",
+                                  storage_adapter='chatterbot.storage.'
+                                  'MongoDatabaseAdapter',
+                                  input_adapter='chatterbot.input.'
+                                  'VariableInputTypeAdapter',
+                                  output_adapter='chatterbot.output.'
+                                  'OutputAdapter',
+                                  output_format='text',
                                   logic_adapters=[
-                                      {'import_path': 'chatterbot.logic.BestMatch',
-                                       'statement_comparison_function': 'chatterbot.comparisons.levenshtein_distance',
-                                       'response_selection_method': 'chatterbot.response_selection.get_most_frequent_response'},
+                                      {'import_path': 'chatterbot.logic.'
+                                       'BestMatch',
+                                       'statement_comparison_function':
+                                       'chatterbot.comparisons.'
+                                       'levenshtein_distance',
+                                       'response_selection_method':
+                                       'chatterbot.response_selection.'
+                                       'get_most_frequent_response'},
                                       'chatterbot.logic.MathematicalEvaluation'
                                       ]
                                   )
@@ -90,14 +98,16 @@ class Chatterbot:
     @checks.serverowner_or_permissions(manage_server=True)
     async def chatterignore(self, context, channel: discord.Channel = None):
         if channel:
-            self.settings['BLOCKED_CHANNELS'].append(channel.id)  # TODO: Check if already in list
+            self.settings['BLOCKED_CHANNELS'].append(channel.id)
+            # TODO: Check if already in list
             dataIO.save_json('data/chatterbot/settings.json', self.settings)
             message = '{} added to blocked channels.'.format(channel.mention)
         elif not self.settings['BLOCKED_CHANNELS']:
             message = 'No channels blocked'
         # else:
         #    channel = discord.utils.get(
-        #        self.bot.get_all_channels(), id=self.settings['BLOCKED_CHANNELS'])
+        #        self.bot.get_all_channels(),
+        #        id=self.settings['BLOCKED_CHANNELS'])
         #    if channel:
         #        message = 'Current channel is {}'.format(channel.mention)
         #    else:
@@ -113,17 +123,24 @@ class Chatterbot:
             pass
         elif message.content[0] == '!':  # Kludge
             pass
-        elif message.mention_everyone is True or message.mentions != [] or message.role_mentions != []:
+        elif message.mention_everyone is True:
+            pass
+        elif message.mentions != []:
+            pass
+        elif message.role_mentions != []:
             pass
         elif message.channel.id == self.settings['CHANNEL_ID']:
             conversation_id = self._get_conversation(message.channel.id)
-            response = await self._get_response(message.content, conversation_id)
+            response = await self._get_response(message.content,
+                                                conversation_id)
             await self.bot.send_message(message.channel, response)
         elif message.channel.id not in self.settings['BLOCKED_CHANNELS']:
             conversation_id = self._get_conversation(message.channel.id)
-            input_statement = self.chatterbot.input.process_input_statement(message.content)
+            input_statement = self.chatterbot.input.process_input_statement(
+                message.content)
             if conversation_id in self.previous_statement:
-                self.chatterbot.learn_response(input_statement, self.previous_statement[conversation_id])
+                self.chatterbot.learn_response(
+                    input_statement, self.previous_statement[conversation_id])
                 self.previous_statement[conversation_id] = input_statement
             else:
                 self.previous_statement[conversation_id] = input_statement
@@ -131,19 +148,23 @@ class Chatterbot:
             pass
 
     async def _get_response(self, input_item, conversation_id):
-        input_statement = self.chatterbot.input.process_input_statement(input_item)
+        input_statement = self.chatterbot.input.process_input_statement(
+            input_item)
         # Preprocess the input statement
         for preprocessor in self.chatterbot.preprocessors:
             input_statement = preprocessor(self.chatterbot, input_statement)
-        statement, response = self.chatterbot.generate_response(input_statement, conversation_id)
-        # Learn that the user's input was a valid response to the chat bot's previous output
+        statement, response = self.chatterbot.generate_response(
+            input_statement, conversation_id)
+        # Learn that the user's input was a valid response to the chat bot's
+        # previous output
         if not self.chatterbot.read_only:
             if conversation_id in self.previous_statement:
                 prev = self.previous_statement[conversation_id]
             else:
                 prev = None
             self.chatterbot.learn_response(statement, prev)
-            self.chatterbot.storage.add_to_conversation(conversation_id, statement, response)
+            self.chatterbot.storage.add_to_conversation(conversation_id,
+                                                        statement, response)
             self.previous_statement[conversation_id] = response
         # Process the response output with the output adapter
         return str(response)
