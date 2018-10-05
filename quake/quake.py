@@ -4,6 +4,7 @@ import aiohttp
 
 # This cog is only possible because of GeoNet.
 
+
 class Quake:
     def __init__(self, bot):
         self.bot = bot

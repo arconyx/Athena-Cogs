@@ -8,6 +8,8 @@ from chatterbot import ChatBot
 from chatterbot.trainers import ListTrainer
 from chatterbot.trainers import ChatterBotCorpusTrainer
 
+# This bot requires MongoDB to be running.
+
 
 class Chatterbot:
     def __init__(self, bot):
