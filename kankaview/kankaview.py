@@ -44,7 +44,7 @@ class Character:
         self.section_id = json_data['section_id']
         self.sex = json_data['sex']
         self.title = json_data['title']
-        self.type = json_data['type']
+        self.kind = json_data['type']
         self.updated = {'at': json_data['updated_at'],
                         'by': json_data['updated_by']}
 
@@ -99,6 +99,20 @@ class KankaView:
             j = await r.json()
             return Character(campaign_id, j['data'])
 
+    async def _search(self, kind, cmpgn_id, query):
+        # TODO: Enable after search support releases
+        async with self.session.get(
+            '{base_url}campaigns/{cmpgn_id}/search/{query}'.format(
+                base_url=REQUEST_PATH,
+                cmpgn_id=cmpgn_id,
+                query=query
+            )
+        ) as r:
+            j = await r.json()['data']
+            for result in j:
+                if result['type'] == kind:
+                    return result['id']
+
     @commands.group(name='kanka', pass_context=True)
     @checks.serverowner_or_permissions(manage_server=True)
     async def kanka(self, ctx):
@@ -134,7 +148,7 @@ class KankaView:
                            colour=discord.Color.blue())
         em.set_thumbnail(url=campaign.image)  # TODO: Test with no image
         em.add_field(name='Owner:', value=campaign.members[0]['user']['name'])
-        em.add_field(name='Visibility', value=campaign.visibility.title())
+        em.add_field(name='Visibility', value=campaign.visibility)
         em.add_field(name='Locale', value=campaign.locale)
         em.add_field(name='Created At',
                      value=campaign.created_at['date'][:-10])
@@ -143,9 +157,14 @@ class KankaView:
         await self.bot.say(embed=em)
 
     @kanka.command(name='character')
-    async def display_character(self, cmpgn_id: int, character_id: int):
-        # TODO: Add search by name support
+    async def display_character(self, cmpgn_id: int, character_id):
         # TODO: Attributes and relations
+        # TODO: Enable below for search
+        if isinstance(character_id, str):
+            await self.bot.say('Search is not implemented yet.')
+            return
+        #     character_id = await self._search('character', cmpgn_id,
+        #                                       character_id)
         char = await self._get_character(cmpgn_id, character_id)
         if not char.is_private:
             em = discord.Embed(title=char.name,
@@ -162,7 +181,7 @@ class KankaView:
             em.set_thumbnail(url=char.image)  # TODO: Test with no image
             em.add_field(name='Title', value=char.title)
             em.add_field(name='Age', value=char.age)
-            em.add_field(name='Type', value=char.type)
+            em.add_field(name='Type', value=char.kind)
             em.add_field(name='Race', value=char.race)
             em.add_field(name='Is Dead', value=char.is_dead)
             em.add_field(name='Sex', value=char.sex)
@@ -170,8 +189,6 @@ class KankaView:
             await self.bot.say(embed=em)
         else:
             await self.bot.say('Entity not found')
-
-    # @kanka.command(name='search', pass_context=True)
 
     @commands.group(name='kankaset', pass_context=True)
     async def kankaset(self, ctx):
