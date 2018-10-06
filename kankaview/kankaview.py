@@ -8,6 +8,7 @@ import tomd
 
 DEFAULT_SETTINGS = {'token': None, 'language': 'en'}
 REQUEST_PATH = 'https://kanka.io/api/v1/'
+STORAGE_PATH = 'https://kanka-user-assets.s3.eu-central-1.amazonaws.com/'
 
 
 class Campaign:
@@ -16,37 +17,56 @@ class Campaign:
         self.name = json_data['name']
         self.locale = json_data['locale']
         self.entry = tomd.convert(json_data['entry'])
+        if len(self.entry) > 2048:
+            self.entry = self.entry[:2045] + '...'
         if json_data['image']:
-            self.image = 'https://kanka.io/storage/' + json_data['image']
+            self.image = STORAGE_PATH + json_data['image']
+        else:
+            self.image = ''
         self.visibility = json_data['visibility']
         self.created_at = json_data['created_at']
         self.updated_at = json_data['updated_at']
         self.members = json_data['members']
 
 
-class Character:
+class Entity:
     def __init__(self, campaign_id, json_data):
         self.campaign_id = campaign_id
-        self.age = json_data['age']
         self.created = {'at': json_data['created_at'],
                         'by': json_data['created_by']}
         self.entity_id = json_data['entity_id']
         self.entry = tomd.convert(json_data['entry'])
-        self.family_id = json_data['family_id']
+        if len(self.entry) > 2048:
+            self.entry = self.entry[:2045] + '...'
         self.id = json_data['id']
         if json_data['image']:
-            self.image = 'https://kanka.io/storage/' + json_data['image']
-        self.is_dead = json_data['is_dead']
+            self.image = STORAGE_PATH + json_data['image']
+        else:
+            self.image = ''
         self.is_private = json_data['is_private']
-        self.location_id = json_data['location_id']
         self.name = json_data['name']
-        self.race = json_data['race']
         self.section_id = json_data['section_id']
-        self.sex = json_data['sex']
-        self.title = json_data['title']
         self.kind = json_data['type']
         self.updated = {'at': json_data['updated_at'],
                         'by': json_data['updated_by']}
+
+
+class Character(Entity):
+    def __init__(self, campaign_id, json_data):
+        super(Character, self).__init__(campaign_id, json_data)
+        self.age = json_data['age']
+        self.family_id = json_data['family_id']
+        self.is_dead = json_data['is_dead']
+        self.location_id = json_data['location_id']
+        self.race = json_data['race']
+        self.sex = json_data['sex']
+        self.title = json_data['title']
+
+
+class Location(Entity):
+    def __init__(self, campaign_id, json_data):
+        super(Location, self).__init__(campaign_id, json_data)
+        self.parent_location_id = json_data['parent_location_id']
 
 
 class KankaView:
@@ -99,6 +119,19 @@ class KankaView:
             j = await r.json()
             return Character(campaign_id, j['data'])
 
+    async def _get_location(self, campaign_id, location_id):
+        # TODO: Search by name
+        async with self.session.get('{base_url}campaigns/'
+                                    '{campaign_id}'
+                                    '/locations/'
+                                    '{location_id}'.format(
+                                        base_url=REQUEST_PATH,
+                                        campaign_id=campaign_id,
+                                        location_id=location_id)
+                                    ) as r:
+            j = await r.json()
+            return Location(campaign_id, j['data'])
+
     async def _search(self, kind, cmpgn_id, query):
         # TODO: Enable after search support releases
         async with self.session.get(
@@ -119,7 +152,7 @@ class KankaView:
         if ctx.invoked_subcommand is None:
             await self.bot.send_cmd_help(ctx)
 
-    @kanka.command(name='campaigns', pass_context=True)
+    @kanka.command(name='campaigns')
     async def list_campaigns(self, ctx):
         """Lists campaigns"""
         campaigns = await self._get_campaigns_list()
@@ -146,7 +179,7 @@ class KankaView:
                                lang=self.settings['language'],
                                id=campaign.id),
                            colour=discord.Color.blue())
-        em.set_thumbnail(url=campaign.image)  # TODO: Test with no image
+        em.set_thumbnail(url=campaign.image)
         em.add_field(name='Owner:', value=campaign.members[0]['user']['name'])
         em.add_field(name='Visibility', value=campaign.visibility)
         em.add_field(name='Locale', value=campaign.locale)
@@ -159,10 +192,12 @@ class KankaView:
     @kanka.command(name='character')
     async def display_character(self, cmpgn_id: int, character_id):
         # TODO: Attributes and relations
-        # TODO: Enable below for search
-        if isinstance(character_id, str):
+        try:
+            character_id = int(character_id)
+        except ValueError:
             await self.bot.say('Search is not implemented yet.')
             return
+        # TODO: Enable below for search
         #     character_id = await self._search('character', cmpgn_id,
         #                                       character_id)
         char = await self._get_character(cmpgn_id, character_id)
@@ -178,7 +213,7 @@ class KankaView:
                                    cmpgn_id=cmpgn_id,
                                    character_id=character_id),
                                colour=discord.Color.blue())
-            em.set_thumbnail(url=char.image)  # TODO: Test with no image
+            em.set_thumbnail(url=char.image)
             em.add_field(name='Title', value=char.title)
             em.add_field(name='Age', value=char.age)
             em.add_field(name='Type', value=char.kind)
@@ -186,6 +221,44 @@ class KankaView:
             em.add_field(name='Is Dead', value=char.is_dead)
             em.add_field(name='Sex', value=char.sex)
             # TODO: Add family
+            await self.bot.say(embed=em)
+        else:
+            await self.bot.say('Entity not found')
+
+    @kanka.command(name='location')
+    async def display_location(self, cmpgn_id: int, location_id):
+        # TODO: Attributes and relations
+        try:
+            location_id = int(location_id)
+        except ValueError:
+            await self.bot.say('Search is not implemented yet.')
+            return
+        # TODO: Enable below for search
+        #     location_id = await self._search('location', cmpgn_id,
+        #                                       location_id)
+        location = await self._get_location(cmpgn_id, location_id)
+        if not location.is_private:
+            em = discord.Embed(title=location.name,
+                               description=location.entry,
+                               url='https://kanka.io/{lang}/campaign/'
+                               '{cmpgn_id}'
+                               '/locations/'
+                               '{location_id}'
+                               .format(
+                                   lang=self.settings['language'],
+                                   cmpgn_id=cmpgn_id,
+                                   location_id=location_id),
+                               colour=discord.Color.blue())
+            em.set_thumbnail(url=location.image)
+            em.add_field(name='Parent',
+                         value='https://kanka.io/{lang}/campaigns/{cmpgn_id}/'
+                         'locations/{parent_location_id}'
+                         .format(lang=self.settings['language'],
+                                 cmpgn_id=cmpgn_id,
+                                 parent_location_id=location.parent_location_id
+                                 )
+                         )
+            # TODO: Display parent name as link instead of id
             await self.bot.say(embed=em)
         else:
             await self.bot.say('Entity not found')
