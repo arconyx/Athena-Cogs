@@ -46,7 +46,6 @@ class Entity:
         self.is_private = json_data['is_private']
         self.name = json_data['name']
         self.section_id = json_data['section_id']
-        self.kind = json_data['type']
         self.updated = {'at': json_data['updated_at'],
                         'by': json_data['updated_by']}
 
@@ -61,12 +60,28 @@ class Character(Entity):
         self.race = json_data['race']
         self.sex = json_data['sex']
         self.title = json_data['title']
+        self.kind = json_data['type']
 
 
 class Location(Entity):
     def __init__(self, campaign_id, json_data):
         super(Location, self).__init__(campaign_id, json_data)
         self.parent_location_id = json_data['parent_location_id']
+        self.kind = json_data['type']
+
+
+class Event(Entity):
+    def __init__(self, campaign_id, json_data):
+        super(Event, self).__init__(campaign_id, json_data)
+        self.date = json_data['date']
+        self.location_id = json_data['location_id']
+        self.kind = json_data['type']
+
+
+class Family(Entity):
+    def __init__(self, campaign_id, json_data):
+        super(Family, self).__init__(campaign_id, json_data)
+        self.location_id = json_data['location_id']
 
 
 class KankaView:
@@ -131,6 +146,32 @@ class KankaView:
                                     ) as r:
             j = await r.json()
             return Location(campaign_id, j['data'])
+
+    async def _get_event(self, campaign_id, event_id):
+        # TODO: Search by name
+        async with self.session.get('{base_url}campaigns/'
+                                    '{campaign_id}'
+                                    '/events/'
+                                    '{event_id}'.format(
+                                        base_url=REQUEST_PATH,
+                                        campaign_id=campaign_id,
+                                        event_id=event_id)
+                                    ) as r:
+            j = await r.json()
+            return Event(campaign_id, j['data'])
+
+    async def _get_family(self, campaign_id, family_id):
+        # TODO: Search by name
+        async with self.session.get('{base_url}campaigns/'
+                                    '{campaign_id}'
+                                    '/families/'
+                                    '{family_id}'.format(
+                                        base_url=REQUEST_PATH,
+                                        campaign_id=campaign_id,
+                                        family_id=family_id)
+                                    ) as r:
+            j = await r.json()
+            return Family(campaign_id, j['data'])
 
     async def _search(self, kind, cmpgn_id, query):
         # TODO: Enable after search support releases
@@ -220,6 +261,15 @@ class KankaView:
             em.add_field(name='Race', value=char.race)
             em.add_field(name='Is Dead', value=char.is_dead)
             em.add_field(name='Sex', value=char.sex)
+            em.add_field(name='Location', value='https://kanka.io/{lang}/'
+                         'campaign/'
+                         '{cmpgn_id}'
+                         '/locations/'
+                         '{location_id}'
+                         .format(
+                            lang=self.settings['language'],
+                            cmpgn_id=cmpgn_id,
+                            location_id=char.location_id))
             # TODO: Add family
             await self.bot.say(embed=em)
         else:
@@ -250,12 +300,90 @@ class KankaView:
                                    location_id=location_id),
                                colour=discord.Color.blue())
             em.set_thumbnail(url=location.image)
-            em.add_field(name='Parent',
+            em.add_field(name='Parent Location',
                          value='https://kanka.io/{lang}/campaigns/{cmpgn_id}/'
                          'locations/{parent_location_id}'
                          .format(lang=self.settings['language'],
                                  cmpgn_id=cmpgn_id,
                                  parent_location_id=location.parent_location_id
+                                 )
+                         )
+            # TODO: Display parent name as link instead of id
+            await self.bot.say(embed=em)
+        else:
+            await self.bot.say('Entity not found')
+
+    @kanka.command(name='event')
+    async def display_event(self, cmpgn_id: int, event_id):
+        # TODO: Attributes and relations
+        try:
+            event_id = int(event_id)
+        except ValueError:
+            await self.bot.say('Search is not implemented yet.')
+            return
+        # TODO: Enable below for search
+        #     event_id = await self._search('event', cmpgn_id,
+        #                                       event_id)
+        event = await self._get_event(cmpgn_id, event_id)
+        if not event.is_private:
+            em = discord.Embed(title=event.name,
+                               description=event.entry,
+                               url='https://kanka.io/{lang}/campaign/'
+                               '{cmpgn_id}'
+                               '/events/'
+                               '{event_id}'
+                               .format(
+                                   lang=self.settings['language'],
+                                   cmpgn_id=cmpgn_id,
+                                   event_id=event_id),
+                               colour=discord.Color.blue())
+            em.set_thumbnail(url=event.image)
+            em.add_field(name='Date', value=event.date)
+            em.add_field(name='Location',
+                         value='https://kanka.io/{lang}/campaigns/{cmpgn_id}/'
+                         'locations/{location_id}'
+                         .format(lang=self.settings['language'],
+                                 cmpgn_id=cmpgn_id,
+                                 location_id=event.location_id
+                                 )
+                         )
+            # TODO: Display parent name as link instead of id
+            await self.bot.say(embed=em)
+        else:
+            await self.bot.say('Entity not found')
+
+    @kanka.command(name='family')
+    async def display_family(self, cmpgn_id: int, family_id):
+        # TODO: Attributes and relations
+        try:
+            family_id = int(family_id)
+        except ValueError:
+            await self.bot.say('Search is not implemented yet.')
+            return
+        # TODO: Enable below for search
+        #     family_id = await self._search('family', cmpgn_id,
+        #                                       family_id)
+        family = await self._get_family(cmpgn_id, family_id)
+        if not family.is_private:
+            em = discord.Embed(title=family.name,
+                               description=family.entry,
+                               url='https://kanka.io/{lang}/campaign/'
+                               '{cmpgn_id}'
+                               '/families/'
+                               '{family_id}'
+                               .format(
+                                   lang=self.settings['language'],
+                                   cmpgn_id=cmpgn_id,
+                                   family_id=family_id),
+                               colour=discord.Color.blue())
+            em.set_thumbnail(url=family.image)
+            # TODO: Add handling for no location
+            em.add_field(name='Location',
+                         value='https://kanka.io/{lang}/campaigns/{cmpgn_id}/'
+                         'locations/{location_id}'
+                         .format(lang=self.settings['language'],
+                                 cmpgn_id=cmpgn_id,
+                                 location_id=family.location_id
                                  )
                          )
             # TODO: Display parent name as link instead of id
