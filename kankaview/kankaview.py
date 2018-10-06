@@ -10,6 +10,8 @@ DEFAULT_SETTINGS = {'token': None, 'language': 'en'}
 REQUEST_PATH = 'https://kanka.io/api/v1/'
 STORAGE_PATH = 'https://kanka-user-assets.s3.eu-central-1.amazonaws.com/'
 
+# TODO: Add private entity display setting
+
 
 class Campaign:
     def __init__(self, json_data):
@@ -82,6 +84,48 @@ class Family(Entity):
     def __init__(self, campaign_id, json_data):
         super(Family, self).__init__(campaign_id, json_data)
         self.location_id = json_data['location_id']
+
+
+class Calendar(Entity):
+    def __init__(self, campaign_id, json_data):
+        super(Calendar, self).__init__(campaign_id, json_data)
+        self.date = json_data['date']
+        if json_data['has_leap_year']:
+            self.leap_year = {'exist': json_data['has_leap_year'],
+                              'amount': json_data['leap_year_amount'],
+                              'month': json_data['leap_year_month'],
+                              'offset': json_data['leap_year_offset'],
+                              'start': json_data['leap_year_start']
+                              }
+        else:
+            self.leap_year = {'exist': False}
+        self.months = json_data['months']
+        self.parameters = json_data['parameters']
+        self.seasons = json_data['seasons']
+        self.suffix = json_data['suffix']
+        self.kind = json_data['type']
+        self.weekdays = json_data['weekdays']
+        self.years = json_data['years']
+
+    def get_month_names(self):
+        names = ''
+        for month in self.months:
+            names += ((month['name']) + ', ')
+        names = names.strip(', ')
+        return names
+
+    def get_weekdays(self):
+        names = ''
+        for day in self.weekdays:
+            names += (day + ', ')
+        names = names.strip(', ')
+        return names
+
+    def get_year_length(self):
+        days = 0
+        for month in self.months:
+            days += month['length']
+        return days
 
 
 class KankaView:
@@ -172,6 +216,19 @@ class KankaView:
                                     ) as r:
             j = await r.json()
             return Family(campaign_id, j['data'])
+
+    async def _get_calendar(self, campaign_id, calendar_id):
+        # TODO: Search by name
+        async with self.session.get('{base_url}campaigns/'
+                                    '{campaign_id}'
+                                    '/calendars/'
+                                    '{calendar_id}'.format(
+                                        base_url=REQUEST_PATH,
+                                        campaign_id=campaign_id,
+                                        calendar_id=calendar_id)
+                                    ) as r:
+            j = await r.json()
+            return Calendar(campaign_id, j['data'])
 
     async def _search(self, kind, cmpgn_id, query):
         # TODO: Enable after search support releases
@@ -386,7 +443,39 @@ class KankaView:
                                  location_id=family.location_id
                                  )
                          )
-            # TODO: Display parent name as link instead of id
+            await self.bot.say(embed=em)
+        else:
+            await self.bot.say('Entity not found')
+
+    @kanka.command(name='calendar')
+    async def display_calendar(self, cmpgn_id: int, calendar_id):
+        # TODO: Attributes and relations
+        try:
+            calendar_id = int(calendar_id)
+        except ValueError:
+            await self.bot.say('Search is not implemented yet.')
+            return
+        # TODO: Enable below for search
+        #     calendar_id = await self._search('calendar', cmpgn_id,
+        #                                       calendar_id)
+        calendar = await self._get_calendar(cmpgn_id, calendar_id)
+        if not calendar.is_private:
+            em = discord.Embed(title=calendar.name,
+                               description=calendar.entry,
+                               url='https://kanka.io/{lang}/campaign/'
+                               '{cmpgn_id}'
+                               '/calendars/'
+                               '{calendar_id}'
+                               .format(
+                                   lang=self.settings['language'],
+                                   cmpgn_id=cmpgn_id,
+                                   calendar_id=calendar_id),
+                               colour=discord.Color.blue())
+            em.set_thumbnail(url=calendar.image)
+            em.add_field(name='Date', value=calendar.date + calendar.suffix)
+            em.add_field(name='Months', value=calendar.get_month_names())
+            em.add_field(name='Length', value=calendar.get_year_length())
+            em.add_field(name='Days', value=calendar.get_weekdays())
             await self.bot.say(embed=em)
         else:
             await self.bot.say('Entity not found')
