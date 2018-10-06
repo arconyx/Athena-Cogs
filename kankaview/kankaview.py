@@ -31,6 +31,26 @@ class Campaign:
         self.members = json_data['members']
 
 
+class DiceRoll:
+    # Dice are annoyingly inconsistant and so get a class without Entity
+    def __init__(self, campaign_id, json_data):
+        self.campaign_id = campaign_id
+        self.id = json_data['id']
+        self.character_id = json_data['character_id']
+        self.name = json_data['name']
+        self.slug = json_data['slug']
+        self.system = json_data['system']
+        self.parameters = json_data['parameters']
+        self.is_private = json_data['private']
+        self.created = {'at': json_data['created_at']}
+        self.updated = {'at': json_data['created_at']}
+        if json_data['image']:
+            self.image = STORAGE_PATH + json_data['image']
+        else:
+            self.image = ''
+        self.section_id = json_data['section_id']
+
+
 class Entity:
     def __init__(self, campaign_id, json_data):
         self.campaign_id = campaign_id
@@ -126,6 +146,14 @@ class Calendar(Entity):
         for month in self.months:
             days += month['length']
         return days
+
+
+class Item(Entity):
+    def __init__(self, campaign_id, json_data):
+        super(Item, self).__init__(campaign_id, json_data)
+        self.location_id = json_data['location_id']
+        self.character_id = json_data['character_id']
+        self.kind = json_data['type']
 
 
 class KankaView:
@@ -229,6 +257,33 @@ class KankaView:
                                     ) as r:
             j = await r.json()
             return Calendar(campaign_id, j['data'])
+
+    async def _get_diceroll(self, campaign_id, diceroll_id):
+        # TODO: I think dice rolls are broken right now. Report bug.
+        # TODO: Search by name
+        async with self.session.get('{base_url}campaigns/'
+                                    '{campaign_id}'
+                                    '/dice_rolls/'
+                                    '{diceroll_id}'.format(
+                                        base_url=REQUEST_PATH,
+                                        campaign_id=campaign_id,
+                                        diceroll_id=diceroll_id)
+                                    ) as r:
+            j = await r.json()
+            return DiceRoll(campaign_id, j['data'])
+
+    async def _get_item(self, campaign_id, item_id):
+        # TODO: Search by name
+        async with self.session.get('{base_url}campaigns/'
+                                    '{campaign_id}'
+                                    '/items/'
+                                    '{item_id}'.format(
+                                        base_url=REQUEST_PATH,
+                                        campaign_id=campaign_id,
+                                        item_id=item_id)
+                                    ) as r:
+            j = await r.json()
+            return Item(campaign_id, j['data'])
 
     async def _search(self, kind, cmpgn_id, query):
         # TODO: Enable after search support releases
@@ -358,7 +413,7 @@ class KankaView:
                                colour=discord.Color.blue())
             em.set_thumbnail(url=location.image)
             em.add_field(name='Parent Location',
-                         value='https://kanka.io/{lang}/campaigns/{cmpgn_id}/'
+                         value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
                          'locations/{parent_location_id}'
                          .format(lang=self.settings['language'],
                                  cmpgn_id=cmpgn_id,
@@ -397,7 +452,7 @@ class KankaView:
             em.set_thumbnail(url=event.image)
             em.add_field(name='Date', value=event.date)
             em.add_field(name='Location',
-                         value='https://kanka.io/{lang}/campaigns/{cmpgn_id}/'
+                         value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
                          'locations/{location_id}'
                          .format(lang=self.settings['language'],
                                  cmpgn_id=cmpgn_id,
@@ -436,7 +491,7 @@ class KankaView:
             em.set_thumbnail(url=family.image)
             # TODO: Add handling for no location
             em.add_field(name='Location',
-                         value='https://kanka.io/{lang}/campaigns/{cmpgn_id}/'
+                         value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
                          'locations/{location_id}'
                          .format(lang=self.settings['language'],
                                  cmpgn_id=cmpgn_id,
@@ -480,6 +535,79 @@ class KankaView:
         else:
             await self.bot.say('Entity not found')
 
+    @kanka.command(name='diceroll')
+    async def display_diceroll(self, cmpgn_id: int, diceroll_id):
+        # TODO: Attributes and relations
+        try:
+            diceroll_id = int(diceroll_id)
+        except ValueError:
+            await self.bot.say('Search is not implemented yet.')
+            return
+        # TODO: Enable below for search
+        #     diceroll_id = await self._search('diceroll', cmpgn_id,
+        #                                       diceroll_id)
+        diceroll = await self._get_diceroll(cmpgn_id, diceroll_id)
+        if not diceroll.is_private:
+            em = discord.Embed(title=diceroll.name,
+                               description=diceroll.parameters,
+                               url='https://kanka.io/{lang}/campaign/'
+                               '{cmpgn_id}'
+                               '/dice_rolls/'
+                               '{diceroll_id}'
+                               .format(
+                                   lang=self.settings['language'],
+                                   cmpgn_id=cmpgn_id,
+                                   diceroll_id=diceroll_id),
+                               colour=discord.Color.blue())
+            em.set_thumbnail(url=diceroll.image)
+            await self.bot.say(embed=em)
+        else:
+            await self.bot.say('Entity not found')
+
+    @kanka.command(name='item')
+    async def display_item(self, cmpgn_id: int, item_id):
+        # TODO: Attributes and relations
+        try:
+            item_id = int(item_id)
+        except ValueError:
+            await self.bot.say('Search is not implemented yet.')
+            return
+        # TODO: Enable below for search
+        #     item_id = await self._search('item', cmpgn_id,
+        #                                       item_id)
+        item = await self._get_item(cmpgn_id, item_id)
+        if not item.is_private:
+            em = discord.Embed(title=item.name,
+                               description=item.entry,
+                               url='https://kanka.io/{lang}/campaign/'
+                               '{cmpgn_id}'
+                               '/items/'
+                               '{item_id}'
+                               .format(
+                                   lang=self.settings['language'],
+                                   cmpgn_id=cmpgn_id,
+                                   item_id=item_id),
+                               colour=discord.Color.blue())
+            em.set_thumbnail(url=item.image)
+            em.add_field(name='Owner',
+                         value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
+                         'characters/{character_id}'
+                         .format(lang=self.settings['language'],
+                                 cmpgn_id=cmpgn_id,
+                                 character_id=item.character_id
+                    ))
+            em.add_field(name='Location',
+                         value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
+                         'locations/{location_id}'
+                         .format(lang=self.settings['language'],
+                                 cmpgn_id=cmpgn_id,
+                                 location_id=item.location_id
+                                 )
+                         )
+            await self.bot.say(embed=em)
+        else:
+            await self.bot.say('Entity not found')
+
     @commands.group(name='kankaset', pass_context=True)
     async def kankaset(self, ctx):
         """Configuration commands for KankaView"""
@@ -503,11 +631,6 @@ class KankaView:
         self.settings = DEFAULT_SETTINGS
         self._save_settings()
         await self.bot.say('API token cleared and settings reset to default.')
-
-    @kankaset.command(name='test')
-    async def test_token(self):
-        async with self.session.get(REQUEST_PATH + 'campaigns') as r:
-            await self.bot.say(r.status)
 
     # TODO: Add way of changing language
 
