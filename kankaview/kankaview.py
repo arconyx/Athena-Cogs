@@ -173,6 +173,17 @@ class Organisation(Entity):
         self.kind = json_data['type']
 
 
+class Quest(Entity):
+    def __init__(self, campaign_id, json_data):
+        super(Quest, self).__init__(campaign_id, json_data)
+        self.character_id = json_data['character_id']
+        self.characters = json_data['characters']
+        self.is_completed = json_data['is_completed']
+        self.locations = json_data['locations']
+        self.kind = json_data['type']
+        self.parent_quest_id = json_data['quest_id']
+
+
 class KankaView:
     def __init__(self, bot):
         self.bot = bot
@@ -327,6 +338,19 @@ class KankaView:
                                     ) as r:
             j = await r.json()
             return Organisation(campaign_id, j['data'])
+
+    async def _get_quest(self, campaign_id, quest_id):
+        # TODO: Search by name
+        async with self.session.get('{base_url}campaigns/'
+                                    '{campaign_id}'
+                                    '/quests/'
+                                    '{quest_id}'.format(
+                                        base_url=REQUEST_PATH,
+                                        campaign_id=campaign_id,
+                                        quest_id=quest_id)
+                                    ) as r:
+            j = await r.json()
+            return Quest(campaign_id, j['data'])
 
     async def _search(self, kind, cmpgn_id, query):
         # TODO: Enable after search support releases
@@ -724,6 +748,54 @@ class KankaView:
                                  ))
             em.add_field(name='Members', value=organisation.members)
             em.add_field(name='Type', value=organisation.kind)
+            await self.bot.say(embed=em)
+        else:
+            await self.bot.say('Entity not found')
+
+    @kanka.command(name='quest')
+    async def display_quest(self, cmpgn_id: int, quest_id):
+        # TODO: Attributes and relations
+        # TODO: Get and list members
+        try:
+            quest_id = int(quest_id)
+        except ValueError:
+            await self.bot.say('Search is not implemented yet.')
+            return
+        # TODO: Enable below for search
+        #     quest_id = await self._search('quest', cmpgn_id,
+        #                                       quest_id)
+        quest = await self._get_quest(cmpgn_id, quest_id)
+        if not quest.is_private:
+            em = discord.Embed(title=quest.name,
+                               description=quest.entry,
+                               url='https://kanka.io/{lang}/campaign/'
+                               '{cmpgn_id}'
+                               '/quests/'
+                               '{quest_id}'
+                               .format(
+                                   lang=self.settings['language'],
+                                   cmpgn_id=cmpgn_id,
+                                   quest_id=quest_id),
+                               colour=discord.Color.blue())
+            em.set_thumbnail(url=quest.image)
+            em.add_field(name='Instigator',
+                         value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
+                         'characters/{character_id}'
+                         .format(lang=self.settings['language'],
+                                 cmpgn_id=cmpgn_id,
+                                 character_id=quest.character_id
+                                 ))
+            em.add_field(name='Completed', value=quest.is_completed)
+            em.add_field(name='Characters', value=quest.characters)
+            em.add_field(name='Parent Quest',
+                         value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
+                         'quests/{quest_id}'
+                         .format(lang=self.settings['language'],
+                                 cmpgn_id=cmpgn_id,
+                                 quest_id=quest.parent_quest_id
+                                 ))
+            em.add_field(name='Locations', value=quest.locations)
+            em.add_field(name='Type', value=quest.kind)
             await self.bot.say(embed=em)
         else:
             await self.bot.say('Entity not found')
