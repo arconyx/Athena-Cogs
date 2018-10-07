@@ -68,7 +68,7 @@ class Entity:
             self.image = ''
         self.is_private = json_data['is_private']
         self.name = json_data['name']
-        self.section_id = json_data['section_id']
+        self.category_id = json_data['section_id']
         self.updated = {'at': json_data['updated_at'],
                         'by': json_data['updated_by']}
 
@@ -182,6 +182,12 @@ class Quest(Entity):
         self.locations = json_data['locations']
         self.kind = json_data['type']
         self.parent_quest_id = json_data['quest_id']
+
+
+class Category(Entity):
+    def __init__(self, campaign_id, json_data):
+        super(Category, self).__init__(campaign_id, json_data)
+        self.kind = json_data['type']
 
 
 class KankaView:
@@ -351,6 +357,19 @@ class KankaView:
                                     ) as r:
             j = await r.json()
             return Quest(campaign_id, j['data'])
+
+    async def _get_category(self, campaign_id, category_id):
+        # TODO: Search by name
+        async with self.session.get('{base_url}campaigns/'
+                                    '{campaign_id}'
+                                    '/section/'
+                                    '{category_id}'.format(
+                                        base_url=REQUEST_PATH,
+                                        campaign_id=campaign_id,
+                                        category_id=category_id)
+                                    ) as r:
+            j = await r.json()
+            return Category(campaign_id, j['data'])
 
     async def _search(self, kind, cmpgn_id, query):
         # TODO: Enable after search support releases
@@ -796,6 +815,44 @@ class KankaView:
                                  ))
             em.add_field(name='Locations', value=quest.locations)
             em.add_field(name='Type', value=quest.kind)
+            await self.bot.say(embed=em)
+        else:
+            await self.bot.say('Entity not found')
+
+    @kanka.command(name='category')
+    async def display_category(self, cmpgn_id: int, category_id):
+        # TODO: Attributes and relations
+        # TODO: Get and list children and subcategories
+        try:
+            category_id = int(category_id)
+        except ValueError:
+            await self.bot.say('Search is not implemented yet.')
+            return
+        # TODO: Enable below for search
+        #     category_id = await self._search('category', cmpgn_id,
+        #                                       category_id)
+        category = await self._get_category(cmpgn_id, category_id)
+        if not category.is_private:
+            em = discord.Embed(title=category.name,
+                               description=category.entry,
+                               url='https://kanka.io/{lang}/campaign/'
+                               '{cmpgn_id}'
+                               '/section/'
+                               '{category_id}'
+                               .format(
+                                   lang=self.settings['language'],
+                                   cmpgn_id=cmpgn_id,
+                                   category_id=category_id),
+                               colour=discord.Color.blue())
+            em.set_thumbnail(url=category.image)
+            em.add_field(name='Parent Category',
+                         value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
+                         'section/{category_id}'
+                         .format(lang=self.settings['language'],
+                                 cmpgn_id=cmpgn_id,
+                                 category_id=category.category_id
+                                 ))
+            em.add_field(name='Type', value=category.kind)
             await self.bot.say(embed=em)
         else:
             await self.bot.say('Entity not found')
