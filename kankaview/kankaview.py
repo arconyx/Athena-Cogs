@@ -165,6 +165,14 @@ class Journal(Entity):
         self.kind = json_data['type']
 
 
+class Organisation(Entity):
+    def __init__(self, campaign_id, json_data):
+        super(Organisation, self).__init__(campaign_id, json_data)
+        self.location_id = json_data['location_id']
+        self.members = json_data['members']
+        self.kind = json_data['type']
+
+
 class KankaView:
     def __init__(self, bot):
         self.bot = bot
@@ -307,6 +315,19 @@ class KankaView:
             j = await r.json()
             return Journal(campaign_id, j['data'])
 
+    async def _get_organisation(self, campaign_id, organisation_id):
+        # TODO: Search by name
+        async with self.session.get('{base_url}campaigns/'
+                                    '{campaign_id}'
+                                    '/organisations/'
+                                    '{organisation_id}'.format(
+                                        base_url=REQUEST_PATH,
+                                        campaign_id=campaign_id,
+                                        organisation_id=organisation_id)
+                                    ) as r:
+            j = await r.json()
+            return Organisation(campaign_id, j['data'])
+
     async def _search(self, kind, cmpgn_id, query):
         # TODO: Enable after search support releases
         async with self.session.get(
@@ -328,7 +349,7 @@ class KankaView:
             await self.bot.send_cmd_help(ctx)
 
     @kanka.command(name='campaigns')
-    async def list_campaigns(self, ctx):
+    async def list_campaigns(self):
         """Lists campaigns"""
         campaigns = await self._get_campaigns_list()
         em = discord.Embed(title='Campaigns List',
@@ -617,7 +638,7 @@ class KankaView:
                          .format(lang=self.settings['language'],
                                  cmpgn_id=cmpgn_id,
                                  character_id=item.character_id
-                    ))
+                                 ))
             em.add_field(name='Location',
                          value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
                          'locations/{location_id}'
@@ -664,6 +685,45 @@ class KankaView:
                                  ))
             em.add_field(name='Date', value=journal.date)
             em.add_field(name='Type', value=journal.kind)
+            await self.bot.say(embed=em)
+        else:
+            await self.bot.say('Entity not found')
+
+    @kanka.command(name='organisation')
+    async def display_organisation(self, cmpgn_id: int, organisation_id):
+        # TODO: Attributes and relations
+        # TODO: Get and list members
+        try:
+            organisation_id = int(organisation_id)
+        except ValueError:
+            await self.bot.say('Search is not implemented yet.')
+            return
+        # TODO: Enable below for search
+        #     organisation_id = await self._search('organisation', cmpgn_id,
+        #                                       organisation_id)
+        organisation = await self._get_organisation(cmpgn_id, organisation_id)
+        if not organisation.is_private:
+            em = discord.Embed(title=organisation.name,
+                               description=organisation.entry,
+                               url='https://kanka.io/{lang}/campaign/'
+                               '{cmpgn_id}'
+                               '/organisations/'
+                               '{organisation_id}'
+                               .format(
+                                   lang=self.settings['language'],
+                                   cmpgn_id=cmpgn_id,
+                                   organisation_id=organisation_id),
+                               colour=discord.Color.blue())
+            em.set_thumbnail(url=organisation.image)
+            em.add_field(name='Location',
+                         value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
+                         'locations/{location_id}'
+                         .format(lang=self.settings['language'],
+                                 cmpgn_id=cmpgn_id,
+                                 location_id=organisation.location_id
+                                 ))
+            em.add_field(name='Members', value=organisation.members)
+            em.add_field(name='Type', value=organisation.kind)
             await self.bot.say(embed=em)
         else:
             await self.bot.say('Entity not found')
