@@ -58,6 +58,7 @@ class Entity:
                         'by': json_data['created_by']}
         self.entity_id = json_data['entity_id']
         self.entry = tomd.convert(json_data['entry'])
+        # Entry length limit due to Discord embed rules
         if len(self.entry) > 2048:
             self.entry = self.entry[:2045] + '...'
         self.id = json_data['id']
@@ -152,6 +153,14 @@ class Item(Entity):
     def __init__(self, campaign_id, json_data):
         super(Item, self).__init__(campaign_id, json_data)
         self.location_id = json_data['location_id']
+        self.character_id = json_data['character_id']
+        self.kind = json_data['type']
+
+
+class Journal(Entity):
+    def __init__(self, campaign_id, json_data):
+        super(Journal, self).__init__(campaign_id, json_data)
+        self.date = json_data['date']
         self.character_id = json_data['character_id']
         self.kind = json_data['type']
 
@@ -284,6 +293,19 @@ class KankaView:
                                     ) as r:
             j = await r.json()
             return Item(campaign_id, j['data'])
+
+    async def _get_journal(self, campaign_id, journal_id):
+        # TODO: Search by name
+        async with self.session.get('{base_url}campaigns/'
+                                    '{campaign_id}'
+                                    '/journals/'
+                                    '{journal_id}'.format(
+                                        base_url=REQUEST_PATH,
+                                        campaign_id=campaign_id,
+                                        journal_id=journal_id)
+                                    ) as r:
+            j = await r.json()
+            return Journal(campaign_id, j['data'])
 
     async def _search(self, kind, cmpgn_id, query):
         # TODO: Enable after search support releases
@@ -604,6 +626,44 @@ class KankaView:
                                  location_id=item.location_id
                                  )
                          )
+            await self.bot.say(embed=em)
+        else:
+            await self.bot.say('Entity not found')
+
+    @kanka.command(name='journal')
+    async def display_journal(self, cmpgn_id: int, journal_id):
+        # TODO: Attributes and relations
+        try:
+            journal_id = int(journal_id)
+        except ValueError:
+            await self.bot.say('Search is not implemented yet.')
+            return
+        # TODO: Enable below for search
+        #     journal_id = await self._search('journal', cmpgn_id,
+        #                                       journal_id)
+        journal = await self._get_journal(cmpgn_id, journal_id)
+        if not journal.is_private:
+            em = discord.Embed(title=journal.name,
+                               description=journal.entry,
+                               url='https://kanka.io/{lang}/campaign/'
+                               '{cmpgn_id}'
+                               '/journals/'
+                               '{journal_id}'
+                               .format(
+                                   lang=self.settings['language'],
+                                   cmpgn_id=cmpgn_id,
+                                   journal_id=journal_id),
+                               colour=discord.Color.blue())
+            em.set_thumbnail(url=journal.image)
+            em.add_field(name='Author',
+                         value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
+                         'characters/{character_id}'
+                         .format(lang=self.settings['language'],
+                                 cmpgn_id=cmpgn_id,
+                                 character_id=journal.character_id
+                                 ))
+            em.add_field(name='Date', value=journal.date)
+            em.add_field(name='Type', value=journal.kind)
             await self.bot.say(embed=em)
         else:
             await self.bot.say('Entity not found')
