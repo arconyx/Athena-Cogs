@@ -1,7 +1,7 @@
 {
     "AUTHOR" : "ArcOnyx",
     "DESCRIPTION" : "Chatbot using the ChatterBot python module that learns from all the servers it is in.",
-    "INSTALL_MSG" : "Thanks for installing ChatterBot! Be aware that it currently only works with the ! command prefix, requires MongoDB to be running and records all messages sent (in channels it isn't set to ignore) to a MongoDB database. Also, the bot does not distinguish between server - messages learnt in one server could be repeated in any server it is in.",
+    "INSTALL_MSG" : "Thanks for installing ChatterBot! Be aware that it currently only works with the ! command prefix, requires MongoDB to be running and records all messages sent (in channels it isn't set to ignore) to a MongoDB database. Also, the cog does not distinguish between servers - messages learnt in one server could be repeated in any server it is in.",
     "NAME" : "ChatterBot",
     "REQUIREMENTS" : [
         "ChatterBot"

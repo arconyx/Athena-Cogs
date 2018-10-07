@@ -865,13 +865,13 @@ class KankaView:
 
     @kankaset.command(name='token')
     async def set_token(self, token: str):
-        """Set API token ('Personal Access Token'). Do not included 'Bearer '.
+        """Set API token ('Personal Access Token'). Do not include 'Bearer '.
         Be aware that this token is stored in plaintext by the bot."""
         if token[:7] != 'Bearer ':
             token = 'Bearer ' + token
         self.settings['token'] = token
         self._save_settings()
-        self._set_headers()
+        self.headers = self._set_headers()
         await self.bot.say('API token set.')
 
     @kankaset.command(name='reset')

@@ -14,12 +14,12 @@ These are unfinished, abandoned or otherwise unusable cogs.
 
 ## Installation Notes
 ### General
-I haven't gotten around to applying for cogs.red listing yet so you won't be able to install them through there. Instead you'll want to run these two commands:
+I haven't gotten around to applying for cogs.red listing yet so you won't be able to install them through there. Instead you'll want to run these two commands (`[p]` should be replaced with the bot's command prefix):
 1. `[p]cog repo add Athena-Cogs https://github.com/arconyx/Athena-Cogs`
 2. `[p]cog install Athena-Cogs <cogname>`
 
 ### ChatterBot
-Be aware that it currently only works with the ! command prefix (I haven't gotten around to fixing that), requires MongoDB to be running and records all messages sent (in channels it isn't set to ignore) to a MongoDB database. Also, the bot does not distinguish between server - messages learnt in one server could be repeated in any server it is in.
+Be aware that it currently only works with the ! command prefix (I haven't gotten around to fixing that), requires MongoDB to be running and records all messages sent (in channels it isn't set to ignore) to a MongoDB database. Also, the cog does not distinguish between servers - messages learnt in one server could be repeated in any server it is in.
 
 ### KankaView
-For this to work you'll need an Personal Access Token for Kanka. You can get this on your profile page, but you will need to contact the dev for API permissions first. Set the token using `!kankaset token <token>` after installing this cog.
+For this to work you'll need an Personal Access Token for Kanka. You can get this on your profile page, but you will need to contact the dev for API permissions first. Set the token (without 'Bearer ') using `!kankaset token <token>` after installing this cog. You may need to reload the cog (`[p]reload kankaview`) after doing this.
