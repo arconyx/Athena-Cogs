@@ -2,7 +2,7 @@ from discord.ext import commands
 import discord
 import aiohttp
 
-# This cog is only possible because of GeoNet.
+# This cog is only possible because of GeoNet (https://www.geonet.org.nz).
 
 
 class Quake:
