@@ -5,7 +5,7 @@ Random cogs I have created for [Red-DiscordBot](https://github.com/Cog-Creators/
 These are at a point where you can actually use them.
 * chatterbot - Uses the [ChatterBot](https://github.com/gunthercox/ChatterBot) module to implement a learning chatbot.
 * inspire - Generate inspiration quotes using [InspiroBot](http://inspirobot.me).
-* kankaview - Access your [Kanka](https://kanka.io/en/campaign/985) campaigns from Discord.
+* kankaview - Access your [Kanka](https://kanka.io) campaigns from Discord.
 * quake - Pulls information on recent earthquakes from [GeoNet](https://www.geonet.org.nz).
 
 ## Broken cogs
