@@ -6,12 +6,12 @@ from .utils.dataIO import dataIO
 from .utils import checks
 import tomd
 
-DEFAULT_SETTINGS = {'token': None, 'language': 'en'}
+DEFAULT_SETTINGS = {'token': None, 'language': 'en', 'hide_private': True}
 REQUEST_PATH = 'https://kanka.io/api/v1/'
 STORAGE_PATH = 'https://kanka-user-assets.s3.eu-central-1.amazonaws.com/'
 MSG_ENTITY_NOT_FOUND = 'Entity not found.'
 
-# TODO: Add private entity display setting
+# TODO: OAuth user tokens?
 
 
 class Campaign:
@@ -387,15 +387,27 @@ class KankaView:
             # This should only get called if there are no results
             return 'NoResults'
 
+    def _check_private(self, entity):
+        # Only really needed to upgrade old versions, can remove in future
+        if 'hide_private' not in self.settings:
+            self.settings['hide_private'] = True
+            self._save_settings()
+        if entity.is_private and self.settings['hide_private']:
+            return True
+        else:
+            return False
+
     @commands.group(name='kanka', pass_context=True)
     @checks.serverowner_or_permissions(manage_server=True)
     async def kanka(self, ctx):
+        """Commands for interacting with Kanka campaigns. Most subcommands will
+        accept an entity name or ID for the second parameter."""
         if ctx.invoked_subcommand is None:
             await self.bot.send_cmd_help(ctx)
 
     @kanka.command(name='campaigns')
     async def list_campaigns(self):
-        """Lists campaigns"""
+        """Lists campaigns the bot has access to."""
         campaigns = await self._get_campaigns_list()
         em = discord.Embed(title='Campaigns List',
                            description='{} campaigns found'.format(
@@ -412,6 +424,7 @@ class KankaView:
 
     @kanka.command(name='campaign')
     async def display_campaign(self,  id: int):
+        """Display selected campaign."""
         # TODO: Add alias and name support
         campaign = await self._get_campaign(id)
         em = discord.Embed(title=campaign.name,
@@ -432,6 +445,7 @@ class KankaView:
 
     @kanka.command(name='character')
     async def display_character(self, cmpgn_id: int, character_id):
+        """Display selected character."""
         # TODO: Attributes and relations
         try:
             character_id = int(character_id)
@@ -442,7 +456,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         char = await self._get_character(cmpgn_id, character_id)
-        if not char.is_private:
+        if not self._check_private(char):
             em = discord.Embed(title=char.name,
                                description=char.entry,
                                url='https://kanka.io/{lang}/campaign/'
@@ -477,6 +491,7 @@ class KankaView:
 
     @kanka.command(name='location')
     async def display_location(self, cmpgn_id: int, location_id):
+        """Display selected location."""
         # TODO: Attributes and relations
         try:
             location_id = int(location_id)
@@ -486,7 +501,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         location = await self._get_location(cmpgn_id, location_id)
-        if not location.is_private:
+        if not self._check_private(location):
             em = discord.Embed(title=location.name,
                                description=location.entry,
                                url='https://kanka.io/{lang}/campaign/'
@@ -514,6 +529,7 @@ class KankaView:
 
     @kanka.command(name='event')
     async def display_event(self, cmpgn_id: int, event_id):
+        """Display selected event."""
         # TODO: Attributes and relations
         try:
             event_id = int(event_id)
@@ -523,7 +539,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         event = await self._get_event(cmpgn_id, event_id)
-        if not event.is_private:
+        if not self._check_private(event):
             em = discord.Embed(title=event.name,
                                description=event.entry,
                                url='https://kanka.io/{lang}/campaign/'
@@ -552,6 +568,7 @@ class KankaView:
 
     @kanka.command(name='family')
     async def display_family(self, cmpgn_id: int, family_id):
+        """Display selected family."""
         # TODO: Attributes and relations
         try:
             family_id = int(family_id)
@@ -561,7 +578,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         family = await self._get_family(cmpgn_id, family_id)
-        if not family.is_private:
+        if not self._check_private(family):
             em = discord.Embed(title=family.name,
                                description=family.entry,
                                url='https://kanka.io/{lang}/campaign/'
@@ -589,6 +606,7 @@ class KankaView:
 
     @kanka.command(name='calendar')
     async def display_calendar(self, cmpgn_id: int, calendar_id):
+        """Display selected calendar."""
         # TODO: Attributes and relations
         try:
             calendar_id = int(calendar_id)
@@ -598,7 +616,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         calendar = await self._get_calendar(cmpgn_id, calendar_id)
-        if not calendar.is_private:
+        if not self._check_private(calendar):
             em = discord.Embed(title=calendar.name,
                                description=calendar.entry,
                                url='https://kanka.io/{lang}/campaign/'
@@ -621,6 +639,7 @@ class KankaView:
 
     @kanka.command(name='diceroll')
     async def display_diceroll(self, cmpgn_id: int, diceroll_id):
+        """Display selected dice roll."""
         # TODO: Attributes and relations
         try:
             diceroll_id = int(diceroll_id)
@@ -630,7 +649,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         diceroll = await self._get_diceroll(cmpgn_id, diceroll_id)
-        if not diceroll.is_private:
+        if not self._check_private(diceroll):
             em = discord.Embed(title=diceroll.name,
                                description=diceroll.parameters,
                                url='https://kanka.io/{lang}/campaign/'
@@ -649,6 +668,7 @@ class KankaView:
 
     @kanka.command(name='item')
     async def display_item(self, cmpgn_id: int, item_id):
+        """Display selected item."""
         # TODO: Attributes and relations
         try:
             item_id = int(item_id)
@@ -658,7 +678,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         item = await self._get_item(cmpgn_id, item_id)
-        if not item.is_private:
+        if not self._check_private(item):
             em = discord.Embed(title=item.name,
                                description=item.entry,
                                url='https://kanka.io/{lang}/campaign/'
@@ -692,6 +712,7 @@ class KankaView:
 
     @kanka.command(name='journal')
     async def display_journal(self, cmpgn_id: int, journal_id):
+        """Display selected journal."""
         # TODO: Attributes and relations
         try:
             journal_id = int(journal_id)
@@ -701,7 +722,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         journal = await self._get_journal(cmpgn_id, journal_id)
-        if not journal.is_private:
+        if not self._check_private(journal):
             em = discord.Embed(title=journal.name,
                                description=journal.entry,
                                url='https://kanka.io/{lang}/campaign/'
@@ -729,6 +750,7 @@ class KankaView:
 
     @kanka.command(name='organisation')
     async def display_organisation(self, cmpgn_id: int, organisation_id):
+        """Display selected organisation."""
         # TODO: Attributes and relations
         # TODO: Get and list members
         try:
@@ -740,7 +762,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         organisation = await self._get_organisation(cmpgn_id, organisation_id)
-        if not organisation.is_private:
+        if not self._check_private(organisation):
             em = discord.Embed(title=organisation.name,
                                description=organisation.entry,
                                url='https://kanka.io/{lang}/campaign/'
@@ -768,6 +790,7 @@ class KankaView:
 
     @kanka.command(name='quest')
     async def display_quest(self, cmpgn_id: int, quest_id):
+        """Display selected quest."""
         # TODO: Attributes and relations
         # TODO: Get and list members
         try:
@@ -778,7 +801,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         quest = await self._get_quest(cmpgn_id, quest_id)
-        if not quest.is_private:
+        if not self._check_private(quest):
             em = discord.Embed(title=quest.name,
                                description=quest.entry,
                                url='https://kanka.io/{lang}/campaign/'
@@ -815,6 +838,7 @@ class KankaView:
 
     @kanka.command(name='category')
     async def display_category(self, cmpgn_id: int, category_id):
+        """Display selected category."""
         # TODO: Attributes and relations
         # TODO: Get and list children and subcategories
         try:
@@ -825,7 +849,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         category = await self._get_category(cmpgn_id, category_id)
-        if not category.is_private:
+        if not self._check_private(category):
             em = discord.Embed(title=category.name,
                                description=category.entry,
                                url='https://kanka.io/{lang}/campaign/'
@@ -878,6 +902,17 @@ class KankaView:
             await self.bot.say('Language set to {}'.format(language))
         else:
             await self.bot.send_cmd_help(ctx)
+
+    @kankaset.command(name='toggleprivate')
+    async def hide_private(self):
+        """Toggle if private entities are hidden."""
+        if self.settings['hide_private']:
+            self.settings['hide_private'] = False
+            await self.bot.say('Now showing private entities.')
+        else:
+            self.settings['hide_private'] = True
+            await self.bot.say('Now hiding private entities.')
+        self._save_settings()
 
     @kankaset.command(name='reset')
     async def restore_default_settings(self):
