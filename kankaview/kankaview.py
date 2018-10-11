@@ -80,7 +80,8 @@ class Character(Entity):
         self.family_id = json_data['family_id']
         self.is_dead = json_data['is_dead']
         self.location_id = json_data['location_id']
-        self.race = json_data['race']
+        # TODO: Add race support back
+        # self.race = json_data['race']
         self.sex = json_data['sex']
         self.title = json_data['title']
         self.kind = json_data['type']
@@ -218,8 +219,6 @@ class KankaView:
             return campaigns
 
     async def _get_campaign(self, id):
-        # TODO: Make this do a thing, unless just using _get_campaigns_list
-        # will always work
         async with self.session.get('{base_url}campaigns/{id}'.format(
                                     base_url=REQUEST_PATH,
                                     id=id)
@@ -380,8 +379,8 @@ class KankaView:
                 query=query
             )
         ) as r:
-            j = await r.json()['data']
-            for result in j:
+            j = await r.json()
+            for result in j['data']:
                 if result['type'] == kind:
                     return result['id']
 
@@ -434,11 +433,8 @@ class KankaView:
         try:
             character_id = int(character_id)
         except ValueError:
-            await self.bot.say('Search is not implemented yet.')
-            return
-        # TODO: Enable below for search
-        #     character_id = await self._search('character', cmpgn_id,
-        #                                       character_id)
+            character_id = await self._search('character', cmpgn_id,
+                                              character_id)
         char = await self._get_character(cmpgn_id, character_id)
         if not char.is_private:
             em = discord.Embed(title=char.name,
@@ -456,7 +452,7 @@ class KankaView:
             em.add_field(name='Title', value=char.title)
             em.add_field(name='Age', value=char.age)
             em.add_field(name='Type', value=char.kind)
-            em.add_field(name='Race', value=char.race)
+            # em.add_field(name='Race', value=char.race)
             em.add_field(name='Is Dead', value=char.is_dead)
             em.add_field(name='Sex', value=char.sex)
             em.add_field(name='Location', value='https://kanka.io/{lang}/'
@@ -479,11 +475,7 @@ class KankaView:
         try:
             location_id = int(location_id)
         except ValueError:
-            await self.bot.say('Search is not implemented yet.')
-            return
-        # TODO: Enable below for search
-        #     location_id = await self._search('location', cmpgn_id,
-        #                                       location_id)
+            location_id = await self._search('location', cmpgn_id, location_id)
         location = await self._get_location(cmpgn_id, location_id)
         if not location.is_private:
             em = discord.Embed(title=location.name,
@@ -517,11 +509,7 @@ class KankaView:
         try:
             event_id = int(event_id)
         except ValueError:
-            await self.bot.say('Search is not implemented yet.')
-            return
-        # TODO: Enable below for search
-        #     event_id = await self._search('event', cmpgn_id,
-        #                                       event_id)
+            event_id = await self._search('event', cmpgn_id, event_id)
         event = await self._get_event(cmpgn_id, event_id)
         if not event.is_private:
             em = discord.Embed(title=event.name,
@@ -556,11 +544,7 @@ class KankaView:
         try:
             family_id = int(family_id)
         except ValueError:
-            await self.bot.say('Search is not implemented yet.')
-            return
-        # TODO: Enable below for search
-        #     family_id = await self._search('family', cmpgn_id,
-        #                                       family_id)
+            family_id = await self._search('family', cmpgn_id, family_id)
         family = await self._get_family(cmpgn_id, family_id)
         if not family.is_private:
             em = discord.Embed(title=family.name,
@@ -594,11 +578,7 @@ class KankaView:
         try:
             calendar_id = int(calendar_id)
         except ValueError:
-            await self.bot.say('Search is not implemented yet.')
-            return
-        # TODO: Enable below for search
-        #     calendar_id = await self._search('calendar', cmpgn_id,
-        #                                       calendar_id)
+            calendar_id = await self._search('calendar', cmpgn_id, calendar_id)
         calendar = await self._get_calendar(cmpgn_id, calendar_id)
         if not calendar.is_private:
             em = discord.Embed(title=calendar.name,
@@ -627,11 +607,7 @@ class KankaView:
         try:
             diceroll_id = int(diceroll_id)
         except ValueError:
-            await self.bot.say('Search is not implemented yet.')
-            return
-        # TODO: Enable below for search
-        #     diceroll_id = await self._search('diceroll', cmpgn_id,
-        #                                       diceroll_id)
+            diceroll_id = await self._search('diceroll', cmpgn_id, diceroll_id)
         diceroll = await self._get_diceroll(cmpgn_id, diceroll_id)
         if not diceroll.is_private:
             em = discord.Embed(title=diceroll.name,
@@ -656,11 +632,7 @@ class KankaView:
         try:
             item_id = int(item_id)
         except ValueError:
-            await self.bot.say('Search is not implemented yet.')
-            return
-        # TODO: Enable below for search
-        #     item_id = await self._search('item', cmpgn_id,
-        #                                       item_id)
+            item_id = await self._search('item', cmpgn_id, item_id)
         item = await self._get_item(cmpgn_id, item_id)
         if not item.is_private:
             em = discord.Embed(title=item.name,
@@ -700,11 +672,7 @@ class KankaView:
         try:
             journal_id = int(journal_id)
         except ValueError:
-            await self.bot.say('Search is not implemented yet.')
-            return
-        # TODO: Enable below for search
-        #     journal_id = await self._search('journal', cmpgn_id,
-        #                                       journal_id)
+            journal_id = await self._search('journal', cmpgn_id, journal_id)
         journal = await self._get_journal(cmpgn_id, journal_id)
         if not journal.is_private:
             em = discord.Embed(title=journal.name,
@@ -739,11 +707,8 @@ class KankaView:
         try:
             organisation_id = int(organisation_id)
         except ValueError:
-            await self.bot.say('Search is not implemented yet.')
-            return
-        # TODO: Enable below for search
-        #     organisation_id = await self._search('organisation', cmpgn_id,
-        #                                       organisation_id)
+            organisation_id = await self._search('organisation', cmpgn_id,
+                                                 organisation_id)
         organisation = await self._get_organisation(cmpgn_id, organisation_id)
         if not organisation.is_private:
             em = discord.Embed(title=organisation.name,
@@ -778,11 +743,7 @@ class KankaView:
         try:
             quest_id = int(quest_id)
         except ValueError:
-            await self.bot.say('Search is not implemented yet.')
-            return
-        # TODO: Enable below for search
-        #     quest_id = await self._search('quest', cmpgn_id,
-        #                                       quest_id)
+            quest_id = await self._search('quest', cmpgn_id, quest_id)
         quest = await self._get_quest(cmpgn_id, quest_id)
         if not quest.is_private:
             em = discord.Embed(title=quest.name,
@@ -826,11 +787,7 @@ class KankaView:
         try:
             category_id = int(category_id)
         except ValueError:
-            await self.bot.say('Search is not implemented yet.')
-            return
-        # TODO: Enable below for search
-        #     category_id = await self._search('category', cmpgn_id,
-        #                                       category_id)
+            category_id = await self._search('section', cmpgn_id, category_id)
         category = await self._get_category(cmpgn_id, category_id)
         if not category.is_private:
             em = discord.Embed(title=category.name,
@@ -874,14 +831,25 @@ class KankaView:
         self.headers = self._set_headers()
         await self.bot.say('API token set.')
 
+    @kankaset.command(name='language', pass_context=True)
+    async def set_language(self, ctx, language: str):
+        """Set language used in links. Valid language codes are en, de, en-US,
+        es, fr, pt-BR"""
+        LANGUAGES = ['en', 'de', 'en-US', 'es', 'fr', 'pt-BR']
+        if language in LANGUAGES:
+            self.settings['language'] = language
+            self._save_settings
+            await self.bot.say('Language set to {}'.format(language))
+        else:
+            await self.bot.send_cmd_help(ctx)
+
     @kankaset.command(name='reset')
     async def restore_default_settings(self):
         """Return to default settings and forget API key."""
+        # TODO: Add confirmation before deletion for safety
         self.settings = DEFAULT_SETTINGS
         self._save_settings()
         await self.bot.say('API token cleared and settings reset to default.')
-
-    # TODO: Add way of changing language
 
 
 def check_folder():
