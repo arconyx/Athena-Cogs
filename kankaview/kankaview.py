@@ -397,8 +397,6 @@ class KankaView:
         else:
             return False
 
-    # def _process_input(self)
-
     @commands.group(name='kanka', pass_context=True)
     @checks.serverowner_or_permissions(manage_server=True)
     async def kanka(self, ctx):
@@ -426,7 +424,8 @@ class KankaView:
 
     @kanka.command(name='campaign')
     async def display_campaign(self,  id: int):
-        """Display selected campaign."""
+        """Display selected campaign and set campaign used for other
+        commands."""
         # TODO: Add alias and name support
         campaign = await self._get_campaign(id)
         em = discord.Embed(title=campaign.name,
@@ -447,18 +446,19 @@ class KankaView:
         await self.bot.say(embed=em)
 
     @kanka.command(name='character')
-    async def display_character(self, cmpgn_id: int, character_id):
+    async def display_character(self, character_id):
         """Display selected character."""
         # TODO: Attributes and relations
         try:
             character_id = int(character_id)
         except ValueError:
-            character_id = await self._search('character', cmpgn_id,
+            character_id = await self._search('character',
+                                              self.active_campaign,
                                               character_id)
             if character_id == 'NoResults':
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
-        char = await self._get_character(cmpgn_id, character_id)
+        char = await self._get_character(self.active_campaign, character_id)
         if not await self._check_private(char):
             em = discord.Embed(title=char.name,
                                description=char.entry,
@@ -468,7 +468,7 @@ class KankaView:
                                '{character_id}'
                                .format(
                                    lang=self.settings['language'],
-                                   cmpgn_id=cmpgn_id,
+                                   cmpgn_id=self.active_campaign,
                                    character_id=character_id),
                                colour=discord.Color.blue())
             em.set_thumbnail(url=char.image)
@@ -485,7 +485,7 @@ class KankaView:
                          '{location_id}'
                          .format(
                             lang=self.settings['language'],
-                            cmpgn_id=cmpgn_id,
+                            cmpgn_id=self.active_campaign,
                             location_id=char.location_id))
             # TODO: Add family
             await self.bot.say(embed=em)
@@ -493,17 +493,18 @@ class KankaView:
             await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='location')
-    async def display_location(self, cmpgn_id: int, location_id):
+    async def display_location(self, location_id):
         """Display selected location."""
         # TODO: Attributes and relations
         try:
             location_id = int(location_id)
         except ValueError:
-            location_id = await self._search('location', cmpgn_id, location_id)
+            location_id = await self._search('location', self.active_campaign,
+                                             location_id)
             if location_id == 'NoResults':
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
-        location = await self._get_location(cmpgn_id, location_id)
+        location = await self._get_location(self.active_campaign, location_id)
         if not await self._check_private(location):
             em = discord.Embed(title=location.name,
                                description=location.entry,
@@ -513,15 +514,15 @@ class KankaView:
                                '{location_id}'
                                .format(
                                    lang=self.settings['language'],
-                                   cmpgn_id=cmpgn_id,
+                                   cmpgn_id=self.active_campaign,
                                    location_id=location_id),
                                colour=discord.Color.blue())
             em.set_thumbnail(url=location.image)
             em.add_field(name='Parent Location',
-                         value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
+                         value='https://kanka.io/{lang}/campaign/{scmpgn_id}/'
                          'locations/{parent_location_id}'
                          .format(lang=self.settings['language'],
-                                 cmpgn_id=cmpgn_id,
+                                 cpmgn_id=self.active_campaign,
                                  parent_location_id=location.parent_location_id
                                  )
                          )
@@ -531,17 +532,18 @@ class KankaView:
             await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='event')
-    async def display_event(self, cmpgn_id: int, event_id):
+    async def display_event(self, event_id):
         """Display selected event."""
         # TODO: Attributes and relations
         try:
             event_id = int(event_id)
         except ValueError:
-            event_id = await self._search('event', cmpgn_id, event_id)
+            event_id = await self._search('event', self.active_campaign,
+                                          event_id)
             if event_id == 'NoResults':
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
-        event = await self._get_event(cmpgn_id, event_id)
+        event = await self._get_event(self.active_campaign, event_id)
         if not await self._check_private(event):
             em = discord.Embed(title=event.name,
                                description=event.entry,
@@ -551,7 +553,7 @@ class KankaView:
                                '{event_id}'
                                .format(
                                    lang=self.settings['language'],
-                                   cmpgn_id=cmpgn_id,
+                                   cpmgn_id=self.active_campaign,
                                    event_id=event_id),
                                colour=discord.Color.blue())
             em.set_thumbnail(url=event.image)
@@ -560,7 +562,7 @@ class KankaView:
                          value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
                          'locations/{location_id}'
                          .format(lang=self.settings['language'],
-                                 cmpgn_id=cmpgn_id,
+                                 cmpgn_id=self.active_campaign,
                                  location_id=event.location_id
                                  )
                          )
@@ -570,17 +572,18 @@ class KankaView:
             await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='family')
-    async def display_family(self, cmpgn_id: int, family_id):
+    async def display_family(self, family_id):
         """Display selected family."""
         # TODO: Attributes and relations
         try:
             family_id = int(family_id)
         except ValueError:
-            family_id = await self._search('family', cmpgn_id, family_id)
+            family_id = await self._search('family', self.active_campaign,
+                                           family_id)
             if family_id == 'NoResults':
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
-        family = await self._get_family(cmpgn_id, family_id)
+        family = await self._get_family(self.active_campaign, family_id)
         if not await self._check_private(family):
             em = discord.Embed(title=family.name,
                                description=family.entry,
@@ -590,7 +593,7 @@ class KankaView:
                                '{family_id}'
                                .format(
                                    lang=self.settings['language'],
-                                   cmpgn_id=cmpgn_id,
+                                   cmpgn_id=self.active_campaign,
                                    family_id=family_id),
                                colour=discord.Color.blue())
             em.set_thumbnail(url=family.image)
@@ -599,7 +602,7 @@ class KankaView:
                          value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
                          'locations/{location_id}'
                          .format(lang=self.settings['language'],
-                                 cmpgn_id=cmpgn_id,
+                                 cmpgn_id=self.active_campaign,
                                  location_id=family.location_id
                                  )
                          )
@@ -608,17 +611,18 @@ class KankaView:
             await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='calendar')
-    async def display_calendar(self, cmpgn_id: int, calendar_id):
+    async def display_calendar(self, calendar_id):
         """Display selected calendar."""
         # TODO: Attributes and relations
         try:
             calendar_id = int(calendar_id)
         except ValueError:
-            calendar_id = await self._search('calendar', cmpgn_id, calendar_id)
+            calendar_id = await self._search('calendar', self.active_campaign,
+                                             calendar_id)
             if calendar_id == 'NoResults':
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
-        calendar = await self._get_calendar(cmpgn_id, calendar_id)
+        calendar = await self._get_calendar(self.active_campaign, calendar_id)
         if not await self._check_private(calendar):
             em = discord.Embed(title=calendar.name,
                                description=calendar.entry,
@@ -628,7 +632,7 @@ class KankaView:
                                '{calendar_id}'
                                .format(
                                    lang=self.settings['language'],
-                                   cmpgn_id=cmpgn_id,
+                                   cmpgn_id=self.active_campaign,
                                    calendar_id=calendar_id),
                                colour=discord.Color.blue())
             em.set_thumbnail(url=calendar.image)
@@ -641,17 +645,18 @@ class KankaView:
             await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='diceroll')
-    async def display_diceroll(self, cmpgn_id: int, diceroll_id):
+    async def display_diceroll(self, diceroll_id):
         """Display selected dice roll."""
         # TODO: Attributes and relations
         try:
             diceroll_id = int(diceroll_id)
         except ValueError:
-            diceroll_id = await self._search('diceroll', cmpgn_id, diceroll_id)
+            diceroll_id = await self._search('diceroll', self.active_campaign,
+                                             diceroll_id)
             if diceroll_id == 'NoResults':
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
-        diceroll = await self._get_diceroll(cmpgn_id, diceroll_id)
+        diceroll = await self._get_diceroll(self.active_campaign, diceroll_id)
         if not await self._check_private(diceroll):
             em = discord.Embed(title=diceroll.name,
                                description=diceroll.parameters,
@@ -661,7 +666,7 @@ class KankaView:
                                '{diceroll_id}'
                                .format(
                                    lang=self.settings['language'],
-                                   cmpgn_id=cmpgn_id,
+                                   cmpgn_id=self.active_campaign,
                                    diceroll_id=diceroll_id),
                                colour=discord.Color.blue())
             em.set_thumbnail(url=diceroll.image)
@@ -670,17 +675,17 @@ class KankaView:
             await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='item')
-    async def display_item(self, cmpgn_id: int, item_id):
+    async def display_item(self, item_id):
         """Display selected item."""
         # TODO: Attributes and relations
         try:
             item_id = int(item_id)
         except ValueError:
-            item_id = await self._search('item', cmpgn_id, item_id)
+            item_id = await self._search('item', self.active_campaign, item_id)
             if item_id == 'NoResults':
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
-        item = await self._get_item(cmpgn_id, item_id)
+        item = await self._get_item(self.active_campaign, item_id)
         if not await self._check_private(item):
             em = discord.Embed(title=item.name,
                                description=item.entry,
@@ -690,7 +695,7 @@ class KankaView:
                                '{item_id}'
                                .format(
                                    lang=self.settings['language'],
-                                   cmpgn_id=cmpgn_id,
+                                   cmpgn_id=self.active_campaign,
                                    item_id=item_id),
                                colour=discord.Color.blue())
             em.set_thumbnail(url=item.image)
@@ -698,14 +703,14 @@ class KankaView:
                          value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
                          'characters/{character_id}'
                          .format(lang=self.settings['language'],
-                                 cmpgn_id=cmpgn_id,
+                                 cmpgn_id=self.active_campaign,
                                  character_id=item.character_id
                                  ))
             em.add_field(name='Location',
                          value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
                          'locations/{location_id}'
                          .format(lang=self.settings['language'],
-                                 cmpgn_id=cmpgn_id,
+                                 cmpgn_id=self.active_campaign,
                                  location_id=item.location_id
                                  )
                          )
@@ -714,17 +719,18 @@ class KankaView:
             await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='journal')
-    async def display_journal(self, cmpgn_id: int, journal_id):
+    async def display_journal(self, journal_id):
         """Display selected journal."""
         # TODO: Attributes and relations
         try:
             journal_id = int(journal_id)
         except ValueError:
-            journal_id = await self._search('journal', cmpgn_id, journal_id)
+            journal_id = await self._search('journal', self.active_campaign,
+                                            journal_id)
             if journal_id == 'NoResults':
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
-        journal = await self._get_journal(cmpgn_id, journal_id)
+        journal = await self._get_journal(self.active_campaign, journal_id)
         if not await self._check_private(journal):
             em = discord.Embed(title=journal.name,
                                description=journal.entry,
@@ -734,7 +740,7 @@ class KankaView:
                                '{journal_id}'
                                .format(
                                    lang=self.settings['language'],
-                                   cmpgn_id=cmpgn_id,
+                                   cmpgn_id=self.active_campaign,
                                    journal_id=journal_id),
                                colour=discord.Color.blue())
             em.set_thumbnail(url=journal.image)
@@ -742,7 +748,7 @@ class KankaView:
                          value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
                          'characters/{character_id}'
                          .format(lang=self.settings['language'],
-                                 cmpgn_id=cmpgn_id,
+                                 cmpgn_id=self.active_campaign,
                                  character_id=journal.character_id
                                  ))
             em.add_field(name='Date', value=journal.date)
@@ -752,19 +758,21 @@ class KankaView:
             await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='organisation')
-    async def display_organisation(self, cmpgn_id: int, organisation_id):
+    async def display_organisation(self, organisation_id):
         """Display selected organisation."""
         # TODO: Attributes and relations
         # TODO: Get and list members
         try:
             organisation_id = int(organisation_id)
         except ValueError:
-            organisation_id = await self._search('organisation', cmpgn_id,
+            organisation_id = await self._search('organisation',
+                                                 self.active_campaign,
                                                  organisation_id)
             if organisation_id == 'NoResults':
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
-        organisation = await self._get_organisation(cmpgn_id, organisation_id)
+        organisation = await self._get_organisation(self.active_campaign,
+                                                    organisation_id)
         if not await self._check_private(organisation):
             em = discord.Embed(title=organisation.name,
                                description=organisation.entry,
@@ -774,7 +782,7 @@ class KankaView:
                                '{organisation_id}'
                                .format(
                                    lang=self.settings['language'],
-                                   cmpgn_id=cmpgn_id,
+                                   cmpgn_id=self.active_campaign,
                                    organisation_id=organisation_id),
                                colour=discord.Color.blue())
             em.set_thumbnail(url=organisation.image)
@@ -782,7 +790,7 @@ class KankaView:
                          value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
                          'locations/{location_id}'
                          .format(lang=self.settings['language'],
-                                 cmpgn_id=cmpgn_id,
+                                 cmpgn_id=self.active_campaign,
                                  location_id=organisation.location_id
                                  ))
             em.add_field(name='Members', value=organisation.members)
@@ -792,18 +800,19 @@ class KankaView:
             await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='quest')
-    async def display_quest(self, cmpgn_id: int, quest_id):
+    async def display_quest(self, quest_id):
         """Display selected quest."""
         # TODO: Attributes and relations
         # TODO: Get and list members
         try:
             quest_id = int(quest_id)
         except ValueError:
-            quest_id = await self._search('quest', cmpgn_id, quest_id)
+            quest_id = await self._search('quest', self.active_campaign,
+                                          quest_id)
             if quest_id == 'NoResults':
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
-        quest = await self._get_quest(cmpgn_id, quest_id)
+        quest = await self._get_quest(self.active_campaign, quest_id)
         if not await self._check_private(quest):
             em = discord.Embed(title=quest.name,
                                description=quest.entry,
@@ -813,7 +822,7 @@ class KankaView:
                                '{quest_id}'
                                .format(
                                    lang=self.settings['language'],
-                                   cmpgn_id=cmpgn_id,
+                                   cmpgn_id=self.active_campaign,
                                    quest_id=quest_id),
                                colour=discord.Color.blue())
             em.set_thumbnail(url=quest.image)
@@ -821,7 +830,7 @@ class KankaView:
                          value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
                          'characters/{character_id}'
                          .format(lang=self.settings['language'],
-                                 cmpgn_id=cmpgn_id,
+                                 cmpgn_id=self.active_campaign,
                                  character_id=quest.character_id
                                  ))
             em.add_field(name='Completed', value=quest.is_completed)
@@ -830,7 +839,7 @@ class KankaView:
                          value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
                          'quests/{quest_id}'
                          .format(lang=self.settings['language'],
-                                 cmpgn_id=cmpgn_id,
+                                 cmpgn_id=self.active_campaign,
                                  quest_id=quest.parent_quest_id
                                  ))
             em.add_field(name='Locations', value=quest.locations)
@@ -840,18 +849,19 @@ class KankaView:
             await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='category')
-    async def display_category(self, cmpgn_id: int, category_id):
+    async def display_category(self, category_id):
         """Display selected category."""
         # TODO: Attributes and relations
         # TODO: Get and list children and subcategories
         try:
             category_id = int(category_id)
         except ValueError:
-            category_id = await self._search('section', cmpgn_id, category_id)
+            category_id = await self._search('section', self.active_campaign,
+                                             category_id)
             if category_id == 'NoResults':
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
-        category = await self._get_category(cmpgn_id, category_id)
+        category = await self._get_category(self.active_campaign, category_id)
         if not await self._check_private(category):
             em = discord.Embed(title=category.name,
                                description=category.entry,
@@ -861,7 +871,7 @@ class KankaView:
                                '{category_id}'
                                .format(
                                    lang=self.settings['language'],
-                                   cmpgn_id=cmpgn_id,
+                                   cmpgn_id=self.active_campaign,
                                    category_id=category_id),
                                colour=discord.Color.blue())
             em.set_thumbnail(url=category.image)
@@ -869,7 +879,7 @@ class KankaView:
                          value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
                          'section/{category_id}'
                          .format(lang=self.settings['language'],
-                                 cmpgn_id=cmpgn_id,
+                                 cmpgn_id=self.active_campaign,
                                  category_id=category.category_id
                                  ))
             em.add_field(name='Type', value=category.kind)
