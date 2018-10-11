@@ -875,6 +875,7 @@ class KankaView:
             await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @commands.group(name='kankaset', pass_context=True)
+    @checks.serverowner_or_permissions(manage_server=True)
     async def kankaset(self, ctx):
         """Configuration commands for KankaView"""
         if ctx.invoked_subcommand is None:
