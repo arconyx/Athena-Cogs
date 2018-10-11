@@ -443,7 +443,7 @@ class KankaView:
         em.add_field(name='Updated At',
                      value=campaign.updated_at['date'][:-10])
         self.active_campaign = id
-        await self.bot.say(embed=em)
+        await self.bot.say('Active campaign set.', embed=em)
 
     @kanka.command(name='character')
     async def display_character(self, character_id):
