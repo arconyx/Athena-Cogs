@@ -9,6 +9,7 @@ import tomd
 DEFAULT_SETTINGS = {'token': None, 'language': 'en'}
 REQUEST_PATH = 'https://kanka.io/api/v1/'
 STORAGE_PATH = 'https://kanka-user-assets.s3.eu-central-1.amazonaws.com/'
+MSG_ENTITY_NOT_FOUND = 'Entity not found.'
 
 # TODO: Add private entity display setting
 
@@ -383,6 +384,8 @@ class KankaView:
             for result in j['data']:
                 if result['type'] == kind:
                     return result['id']
+            # This should only get called if there are no results
+            return 'NoResults'
 
     @commands.group(name='kanka', pass_context=True)
     @checks.serverowner_or_permissions(manage_server=True)
@@ -435,6 +438,9 @@ class KankaView:
         except ValueError:
             character_id = await self._search('character', cmpgn_id,
                                               character_id)
+            if character_id == 'NoResults':
+                await self.bot.say(MSG_ENTITY_NOT_FOUND)
+                return
         char = await self._get_character(cmpgn_id, character_id)
         if not char.is_private:
             em = discord.Embed(title=char.name,
@@ -467,7 +473,7 @@ class KankaView:
             # TODO: Add family
             await self.bot.say(embed=em)
         else:
-            await self.bot.say('Entity not found')
+            await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='location')
     async def display_location(self, cmpgn_id: int, location_id):
@@ -476,6 +482,9 @@ class KankaView:
             location_id = int(location_id)
         except ValueError:
             location_id = await self._search('location', cmpgn_id, location_id)
+            if location_id == 'NoResults':
+                await self.bot.say(MSG_ENTITY_NOT_FOUND)
+                return
         location = await self._get_location(cmpgn_id, location_id)
         if not location.is_private:
             em = discord.Embed(title=location.name,
@@ -501,7 +510,7 @@ class KankaView:
             # TODO: Display parent name as link instead of id
             await self.bot.say(embed=em)
         else:
-            await self.bot.say('Entity not found')
+            await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='event')
     async def display_event(self, cmpgn_id: int, event_id):
@@ -510,6 +519,9 @@ class KankaView:
             event_id = int(event_id)
         except ValueError:
             event_id = await self._search('event', cmpgn_id, event_id)
+            if event_id == 'NoResults':
+                await self.bot.say(MSG_ENTITY_NOT_FOUND)
+                return
         event = await self._get_event(cmpgn_id, event_id)
         if not event.is_private:
             em = discord.Embed(title=event.name,
@@ -536,7 +548,7 @@ class KankaView:
             # TODO: Display parent name as link instead of id
             await self.bot.say(embed=em)
         else:
-            await self.bot.say('Entity not found')
+            await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='family')
     async def display_family(self, cmpgn_id: int, family_id):
@@ -545,6 +557,9 @@ class KankaView:
             family_id = int(family_id)
         except ValueError:
             family_id = await self._search('family', cmpgn_id, family_id)
+            if family_id == 'NoResults':
+                await self.bot.say(MSG_ENTITY_NOT_FOUND)
+                return
         family = await self._get_family(cmpgn_id, family_id)
         if not family.is_private:
             em = discord.Embed(title=family.name,
@@ -570,7 +585,7 @@ class KankaView:
                          )
             await self.bot.say(embed=em)
         else:
-            await self.bot.say('Entity not found')
+            await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='calendar')
     async def display_calendar(self, cmpgn_id: int, calendar_id):
@@ -579,6 +594,9 @@ class KankaView:
             calendar_id = int(calendar_id)
         except ValueError:
             calendar_id = await self._search('calendar', cmpgn_id, calendar_id)
+            if calendar_id == 'NoResults':
+                await self.bot.say(MSG_ENTITY_NOT_FOUND)
+                return
         calendar = await self._get_calendar(cmpgn_id, calendar_id)
         if not calendar.is_private:
             em = discord.Embed(title=calendar.name,
@@ -599,7 +617,7 @@ class KankaView:
             em.add_field(name='Days', value=calendar.get_weekdays())
             await self.bot.say(embed=em)
         else:
-            await self.bot.say('Entity not found')
+            await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='diceroll')
     async def display_diceroll(self, cmpgn_id: int, diceroll_id):
@@ -608,6 +626,9 @@ class KankaView:
             diceroll_id = int(diceroll_id)
         except ValueError:
             diceroll_id = await self._search('diceroll', cmpgn_id, diceroll_id)
+            if diceroll_id == 'NoResults':
+                await self.bot.say(MSG_ENTITY_NOT_FOUND)
+                return
         diceroll = await self._get_diceroll(cmpgn_id, diceroll_id)
         if not diceroll.is_private:
             em = discord.Embed(title=diceroll.name,
@@ -624,7 +645,7 @@ class KankaView:
             em.set_thumbnail(url=diceroll.image)
             await self.bot.say(embed=em)
         else:
-            await self.bot.say('Entity not found')
+            await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='item')
     async def display_item(self, cmpgn_id: int, item_id):
@@ -633,6 +654,9 @@ class KankaView:
             item_id = int(item_id)
         except ValueError:
             item_id = await self._search('item', cmpgn_id, item_id)
+            if item_id == 'NoResults':
+                await self.bot.say(MSG_ENTITY_NOT_FOUND)
+                return
         item = await self._get_item(cmpgn_id, item_id)
         if not item.is_private:
             em = discord.Embed(title=item.name,
@@ -664,7 +688,7 @@ class KankaView:
                          )
             await self.bot.say(embed=em)
         else:
-            await self.bot.say('Entity not found')
+            await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='journal')
     async def display_journal(self, cmpgn_id: int, journal_id):
@@ -673,6 +697,9 @@ class KankaView:
             journal_id = int(journal_id)
         except ValueError:
             journal_id = await self._search('journal', cmpgn_id, journal_id)
+            if journal_id == 'NoResults':
+                await self.bot.say(MSG_ENTITY_NOT_FOUND)
+                return
         journal = await self._get_journal(cmpgn_id, journal_id)
         if not journal.is_private:
             em = discord.Embed(title=journal.name,
@@ -698,7 +725,7 @@ class KankaView:
             em.add_field(name='Type', value=journal.kind)
             await self.bot.say(embed=em)
         else:
-            await self.bot.say('Entity not found')
+            await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='organisation')
     async def display_organisation(self, cmpgn_id: int, organisation_id):
@@ -709,6 +736,9 @@ class KankaView:
         except ValueError:
             organisation_id = await self._search('organisation', cmpgn_id,
                                                  organisation_id)
+            if organisation_id == 'NoResults':
+                await self.bot.say(MSG_ENTITY_NOT_FOUND)
+                return
         organisation = await self._get_organisation(cmpgn_id, organisation_id)
         if not organisation.is_private:
             em = discord.Embed(title=organisation.name,
@@ -734,7 +764,7 @@ class KankaView:
             em.add_field(name='Type', value=organisation.kind)
             await self.bot.say(embed=em)
         else:
-            await self.bot.say('Entity not found')
+            await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='quest')
     async def display_quest(self, cmpgn_id: int, quest_id):
@@ -744,6 +774,9 @@ class KankaView:
             quest_id = int(quest_id)
         except ValueError:
             quest_id = await self._search('quest', cmpgn_id, quest_id)
+            if quest_id == 'NoResults':
+                await self.bot.say(MSG_ENTITY_NOT_FOUND)
+                return
         quest = await self._get_quest(cmpgn_id, quest_id)
         if not quest.is_private:
             em = discord.Embed(title=quest.name,
@@ -778,7 +811,7 @@ class KankaView:
             em.add_field(name='Type', value=quest.kind)
             await self.bot.say(embed=em)
         else:
-            await self.bot.say('Entity not found')
+            await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='category')
     async def display_category(self, cmpgn_id: int, category_id):
@@ -788,6 +821,9 @@ class KankaView:
             category_id = int(category_id)
         except ValueError:
             category_id = await self._search('section', cmpgn_id, category_id)
+            if category_id == 'NoResults':
+                await self.bot.say(MSG_ENTITY_NOT_FOUND)
+                return
         category = await self._get_category(cmpgn_id, category_id)
         if not category.is_private:
             em = discord.Embed(title=category.name,
@@ -812,7 +848,7 @@ class KankaView:
             em.add_field(name='Type', value=category.kind)
             await self.bot.say(embed=em)
         else:
-            await self.bot.say('Entity not found')
+            await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
     @commands.group(name='kankaset', pass_context=True)
     async def kankaset(self, ctx):
