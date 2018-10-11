@@ -387,7 +387,7 @@ class KankaView:
             # This should only get called if there are no results
             return 'NoResults'
 
-    def _check_private(self, entity):
+    async def _check_private(self, entity):
         # Only really needed to upgrade old versions, can remove in future
         if 'hide_private' not in self.settings:
             self.settings['hide_private'] = True
@@ -396,6 +396,8 @@ class KankaView:
             return True
         else:
             return False
+
+    # def _process_input(self)
 
     @commands.group(name='kanka', pass_context=True)
     @checks.serverowner_or_permissions(manage_server=True)
@@ -441,6 +443,7 @@ class KankaView:
                      value=campaign.created_at['date'][:-10])
         em.add_field(name='Updated At',
                      value=campaign.updated_at['date'][:-10])
+        self.active_campaign = id
         await self.bot.say(embed=em)
 
     @kanka.command(name='character')
@@ -456,7 +459,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         char = await self._get_character(cmpgn_id, character_id)
-        if not self._check_private(char):
+        if not await self._check_private(char):
             em = discord.Embed(title=char.name,
                                description=char.entry,
                                url='https://kanka.io/{lang}/campaign/'
@@ -501,7 +504,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         location = await self._get_location(cmpgn_id, location_id)
-        if not self._check_private(location):
+        if not await self._check_private(location):
             em = discord.Embed(title=location.name,
                                description=location.entry,
                                url='https://kanka.io/{lang}/campaign/'
@@ -539,7 +542,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         event = await self._get_event(cmpgn_id, event_id)
-        if not self._check_private(event):
+        if not await self._check_private(event):
             em = discord.Embed(title=event.name,
                                description=event.entry,
                                url='https://kanka.io/{lang}/campaign/'
@@ -578,7 +581,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         family = await self._get_family(cmpgn_id, family_id)
-        if not self._check_private(family):
+        if not await self._check_private(family):
             em = discord.Embed(title=family.name,
                                description=family.entry,
                                url='https://kanka.io/{lang}/campaign/'
@@ -616,7 +619,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         calendar = await self._get_calendar(cmpgn_id, calendar_id)
-        if not self._check_private(calendar):
+        if not await self._check_private(calendar):
             em = discord.Embed(title=calendar.name,
                                description=calendar.entry,
                                url='https://kanka.io/{lang}/campaign/'
@@ -649,7 +652,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         diceroll = await self._get_diceroll(cmpgn_id, diceroll_id)
-        if not self._check_private(diceroll):
+        if not await self._check_private(diceroll):
             em = discord.Embed(title=diceroll.name,
                                description=diceroll.parameters,
                                url='https://kanka.io/{lang}/campaign/'
@@ -678,7 +681,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         item = await self._get_item(cmpgn_id, item_id)
-        if not self._check_private(item):
+        if not await self._check_private(item):
             em = discord.Embed(title=item.name,
                                description=item.entry,
                                url='https://kanka.io/{lang}/campaign/'
@@ -722,7 +725,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         journal = await self._get_journal(cmpgn_id, journal_id)
-        if not self._check_private(journal):
+        if not await self._check_private(journal):
             em = discord.Embed(title=journal.name,
                                description=journal.entry,
                                url='https://kanka.io/{lang}/campaign/'
@@ -762,7 +765,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         organisation = await self._get_organisation(cmpgn_id, organisation_id)
-        if not self._check_private(organisation):
+        if not await self._check_private(organisation):
             em = discord.Embed(title=organisation.name,
                                description=organisation.entry,
                                url='https://kanka.io/{lang}/campaign/'
@@ -801,7 +804,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         quest = await self._get_quest(cmpgn_id, quest_id)
-        if not self._check_private(quest):
+        if not await self._check_private(quest):
             em = discord.Embed(title=quest.name,
                                description=quest.entry,
                                url='https://kanka.io/{lang}/campaign/'
@@ -849,7 +852,7 @@ class KankaView:
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
         category = await self._get_category(cmpgn_id, category_id)
-        if not self._check_private(category):
+        if not await self._check_private(category):
             em = discord.Embed(title=category.name,
                                description=category.entry,
                                url='https://kanka.io/{lang}/campaign/'
