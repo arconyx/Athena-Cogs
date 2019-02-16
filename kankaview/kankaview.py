@@ -537,7 +537,7 @@ class KankaView:
         # TODO: Attributes and relations
         try:
             event_id = int(event_id)
-        except ValueError:o
+        except ValueError:
             event_id = await self._search('event', self.active_campaign,
                                           event_id)
             if event_id == 'NoResults':
