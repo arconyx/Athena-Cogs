@@ -7,7 +7,7 @@ from .utils import checks
 import tomd
 
 DEFAULT_SETTINGS = {'token': None, 'language': 'en', 'hide_private': True}
-REQUEST_PATH = 'https://kanka.io/api/v1/'
+REQUEST_PATH = 'https://kanka.io/api/1.0/'
 STORAGE_PATH = 'https://kanka-user-assets.s3.eu-central-1.amazonaws.com/'
 MSG_ENTITY_NOT_FOUND = 'Entity not found.'
 
