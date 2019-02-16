@@ -49,7 +49,7 @@ class DiceRoll:
             self.image = STORAGE_PATH + json_data['image']
         else:
             self.image = ''
-        self.section_id = json_data['section_id']
+        self.tags = json_data['tags']
 
 
 class Entity:
@@ -69,7 +69,7 @@ class Entity:
             self.image = ''
         self.is_private = json_data['is_private']
         self.name = json_data['name']
-        self.category_id = json_data['section_id']
+        self.tags = json_data['tags']
         self.updated = {'at': json_data['updated_at'],
                         'by': json_data['updated_by']}
 
@@ -186,9 +186,9 @@ class Quest(Entity):
         self.parent_quest_id = json_data['quest_id']
 
 
-class Category(Entity):
+class Tag(Entity):
     def __init__(self, campaign_id, json_data):
-        super(Category, self).__init__(campaign_id, json_data)
+        super(Tag, self).__init__(campaign_id, json_data)
         self.kind = json_data['type']
 
 
@@ -358,18 +358,18 @@ class KankaView:
             j = await r.json()
             return Quest(campaign_id, j['data'])
 
-    async def _get_category(self, campaign_id, category_id):
+    async def _get_tag(self, campaign_id, tag_id):
         # TODO: Search by name
         async with self.session.get('{base_url}campaigns/'
                                     '{campaign_id}'
-                                    '/section/'
-                                    '{category_id}'.format(
+                                    '/tags/'
+                                    '{tag_id}'.format(
                                         base_url=REQUEST_PATH,
                                         campaign_id=campaign_id,
-                                        category_id=category_id)
+                                        tag_id=tag_id)
                                     ) as r:
             j = await r.json()
-            return Category(campaign_id, j['data'])
+            return Tag(campaign_id, j['data'])
 
     async def _search(self, kind, cmpgn_id, query):
         # TODO: Enable after search support releases
@@ -537,7 +537,7 @@ class KankaView:
         # TODO: Attributes and relations
         try:
             event_id = int(event_id)
-        except ValueError:
+        except ValueError:o
             event_id = await self._search('event', self.active_campaign,
                                           event_id)
             if event_id == 'NoResults':
@@ -848,41 +848,41 @@ class KankaView:
         else:
             await self.bot.say(MSG_ENTITY_NOT_FOUND)
 
-    @kanka.command(name='category')
-    async def display_category(self, category_id):
-        """Display selected category."""
+    @kanka.command(name='tag')
+    async def display_tag(self, tag_id):
+        """Display selected tag."""
         # TODO: Attributes and relations
         # TODO: Get and list children and subcategories
         try:
-            category_id = int(category_id)
+            tag_id = int(tag_id)
         except ValueError:
-            category_id = await self._search('section', self.active_campaign,
-                                             category_id)
-            if category_id == 'NoResults':
+            tag_id = await self._search('tag', self.active_campaign,
+                                             tag_id)
+            if tag_id == 'NoResults':
                 await self.bot.say(MSG_ENTITY_NOT_FOUND)
                 return
-        category = await self._get_category(self.active_campaign, category_id)
-        if not await self._check_private(category):
-            em = discord.Embed(title=category.name,
-                               description=category.entry,
+        tag = await self._get_tag(self.active_campaign, tag_id)
+        if not await self._check_private(tag):
+            em = discord.Embed(title=tag.name,
+                               description=tag.entry,
                                url='https://kanka.io/{lang}/campaign/'
                                '{cmpgn_id}'
-                               '/section/'
-                               '{category_id}'
+                               '/tags/'
+                               '{tag_id}'
                                .format(
                                    lang=self.settings['language'],
                                    cmpgn_id=self.active_campaign,
-                                   category_id=category_id),
+                                   tag_id=tag_id),
                                colour=discord.Color.blue())
-            em.set_thumbnail(url=category.image)
-            em.add_field(name='Parent Category',
+            em.set_thumbnail(url=tag.image)
+            em.add_field(name='Parent tag',
                          value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
-                         'section/{category_id}'
+                         'tags/{tag_id}'
                          .format(lang=self.settings['language'],
                                  cmpgn_id=self.active_campaign,
-                                 category_id=category.category_id
+                                 tag_id=tag.tag_id
                                  ))
-            em.add_field(name='Type', value=category.kind)
+            em.add_field(name='Type', value=tag.kind)
             await self.bot.say(embed=em)
         else:
             await self.bot.say(MSG_ENTITY_NOT_FOUND)
