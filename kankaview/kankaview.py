@@ -519,7 +519,7 @@ class KankaView:
                                colour=discord.Color.blue())
             em.set_thumbnail(url=location.image)
             em.add_field(name='Parent Location',
-                         value='https://kanka.io/{lang}/campaign/{scmpgn_id}/'
+                         value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
                          'locations/{parent_location_id}'
                          .format(lang=self.settings['language'],
                                  cpmgn_id=self.active_campaign,
