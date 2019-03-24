@@ -522,7 +522,7 @@ class KankaView:
                          value='https://kanka.io/{lang}/campaign/{cmpgn_id}/'
                          'locations/{parent_location_id}'
                          .format(lang=self.settings['language'],
-                                 cpmgn_id=self.active_campaign,
+                                 cmpgn_id=self.active_campaign,
                                  parent_location_id=location.parent_location_id
                                  )
                          )
