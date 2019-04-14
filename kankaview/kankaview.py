@@ -398,7 +398,6 @@ class KankaView:
             return False
 
     @commands.group(name='kanka', pass_context=True)
-    @checks.serverowner_or_permissions(manage_server=True)
     async def kanka(self, ctx):
         """Commands for interacting with Kanka campaigns. Most subcommands will
         accept an entity name or ID for the second parameter."""
