@@ -1,7 +1,7 @@
 {
-    "AUTHOR" : "ArcOnyx",
-    "DESCRIPTION" : "A random collection of cogs I have created for Red.",
-    "INSTALL_MSG" : "Thanks for trying out my cogs. You can find the source and report issues here: https://github.com/arconyx/Athena-Cogs",
-    "NAME" : "Athena Cogs",
-    "SHORT" : "A random assortment of cogs",
+    "author" : "ArcOnyx",
+    "description" : "A random collection of cogs I have created for Red.",
+    "install_msg" : "Thanks for trying out my cogs. You can find the source and report issues here: https://github.com/arconyx/Athena-Cogs",
+    "name" : "Athena Cogs",
+    "short" : "A random assortment of cogs",
 }
