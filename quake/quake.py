@@ -10,9 +10,9 @@ class Quake(commands.Cog):
     async def quake(self, ctx, mmi: int = 4):
         """Polls GeoNet for their latest quake and publishes the info"""
         if mmi < -1 or mmi > 8:
-            await self.bot.say('The Modified Mercalli Intensity given must be'
-                               'between -1 and 8 inclusive. Defaults to 4 when'
-                               'left blank.')
+            await ctx.send('The Modified Mercalli Intensity given must be'
+                           'between -1 and 8 inclusive. Defaults to 4 when'
+                           'left blank.')
         else:
             # Call the GeoNet API https://api.geonet.org.nz
             # Returns quakes with MMI >= 4 in the New Zealand region during the
