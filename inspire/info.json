@@ -1,12 +1,12 @@
 {
-    "AUTHOR" : "ArcOnyx",
-    "DESCRIPTION" : "Get AI generated inspirational quotes from InspiroBot.",
-    "INSTALL_MSG" : "Thanks for installing Inspire! Don't forget to check out the InspiroBot website (http://inspirobot.me), all I did was write an API call.",
-    "NAME" : "Inspire",
-    "REQUIREMENTS" : [],
-    "SHORT" : "Get inspirational quotes from InspiroBot",
-    "TAGS" : [
-        "inspirobot",
-        "quotes"
+    "author" : "ArcOnyx",
+    "bot_version": [3,0,0],
+    "description" : "Get AI generated inspirational quotes from InspiroBot.",
+    "install_msg" : "Thanks for installing Inspire! Don't forget to check out the InspiroBot website (http://inspirobot.me), all I did was write an API call.",
+    "name" : "Inspire",
+    "short" : "Get inspirational quotes from InspiroBots",
+    "tags" : [
+      "inspirobot",
+      "quotes"
     ]
 }

@@ -1,19 +1,12 @@
-from discord.ext import commands
+from redbot.core import commands
 import aiohttp
 
 # Unoffical Discord intergration for the hilarious http://inspirobot.me/
 
 
-class Inspire:
-    def __init__(self, bot):
-        self.bot = bot
-
+class Inspire(commands.Cog):
     @commands.command()
-    async def inspire(self):
+    async def inspire(self, ctx):
         async with aiohttp.get(
                 'http://inspirobot.me/api?generate=true') as quote:
-            await self.bot.say(await quote.text())
-
-
-def setup(bot):
-    bot.add_cog(Inspire(bot))
+            await ctx.send(await quote.text())
