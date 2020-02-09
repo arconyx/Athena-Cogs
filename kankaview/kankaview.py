@@ -475,7 +475,7 @@ class KankaView(commands.Cog):
         em.add_field(name='Created At',
                      value=campaign.created_at[:-11].replace('T', ' '))
         em.add_field(name='Updated At',
-                     value=campaign.created_at[:-11].replace('T', ' '))
+                     value=campaign.updated_at[:-11].replace('T', ' '))
         await self.config.guild(ctx.guild).active.set(id)
         await ctx.send('Active campaign set.', embed=em)
 
