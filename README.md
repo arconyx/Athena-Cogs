@@ -24,13 +24,15 @@ I haven't gotten around to applying for cogs.red listing yet so you won't be abl
 Be aware that it currently only works with the ! command prefix (I haven't gotten around to fixing that), requires MongoDB to be running and records all messages sent (in channels it isn't set to ignore) to a MongoDB database. Also, the cog does not distinguish between servers - messages learnt in one server could be repeated in any server it is in.
 
 ### KankaView
-####Initial Setup
+**Initial Setup**
+
 For this to work you'll need an Personal Access Token for Kanka. You can get this on your profile page, but you will need to contact the dev for API permissions first.
 1. `[p]kankaset token <Personal Access Token>`
 2. `[p]reload kankaview`
 3. `[p]kanka campaign <Campain ID>`
 
-####Tips
+**Tips**
+
 Your most used command will likely be the search command. I recommend setting up an alias for this command. I use 'dnd' since I am using Kanka for my D&D campaign, and that is a command that my players will easily recognize.
 1. `[p]load alias`
 2. `[p]alias add dnd kanka search`
