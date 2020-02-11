@@ -378,7 +378,7 @@ class KankaView(commands.Cog):
                 entity = await self._get_mention(campaign_id, entity_type, int(entity_id))
 
                 # if we were able to retrieve the entity, build a hyperlink to replace the mention
-                if entity is not None:
+                if entity is not None and not await self._check_private(ctx.guild, entity):
                     url = '[{name}](https://kanka.io/{lang}/campaign/{cmpgn_id}/{type}/{id})'.format(
                         name=entity.name,
                         lang=await self._language(ctx),
