@@ -21,8 +21,6 @@ class Campaign:
         self.name = json_data['name']
         self.locale = json_data['locale']
         self.entry = tomd.convert(json_data['entry'])
-        if len(self.entry) > 2048:
-            self.entry = self.entry[:2045] + '...'
         if json_data['image']:
             self.image = STORAGE_PATH + json_data['image']
         else:
@@ -31,6 +29,7 @@ class Campaign:
         self.created_at = json_data['created_at']
         self.updated_at = json_data['updated_at']
         self.members = json_data['members']['data']
+        self.type = 'campaign'
 
 
 class DiceRoll:
@@ -63,9 +62,6 @@ class Entity:
             json_data['entry'] = ('<p>This entity doesn\'t have an description'
                                   + ' yet.</p>')
         self.entry = tomd.convert(json_data['entry'])
-        # Entry length limit due to Discord embed rules
-        if len(self.entry) > 1024:
-            self.entry = self.entry[:1024] + '...'
         self.id = json_data['id']
         if json_data['image']:
             self.image = STORAGE_PATH + json_data['image']
@@ -98,6 +94,7 @@ class Character(Entity):
                     self.files[json_data['entity_files']['data'][i]['name']] = json_data['entity_files']['data'][i]['path']
         else:
             self.file = None
+        self.type = 'characters'
 
 
 class Location(Entity):
@@ -105,6 +102,7 @@ class Location(Entity):
         super(Location, self).__init__(campaign_id, json_data)
         self.parent_location_id = json_data['parent_location_id']
         self.map = json_data['map']
+        self.type = 'locations'
 
 
 class Event(Entity):
@@ -112,12 +110,14 @@ class Event(Entity):
         super(Event, self).__init__(campaign_id, json_data)
         self.date = json_data['date']
         self.location_id = json_data['location_id']
+        self.type = 'events'
 
 
 class Family(Entity):
     def __init__(self, campaign_id, json_data):
         super(Family, self).__init__(campaign_id, json_data)
         self.location_id = json_data['location_id']
+        self.type = 'families'
 
 
 class Calendar(Entity):
@@ -139,6 +139,7 @@ class Calendar(Entity):
         self.suffix = json_data['suffix']
         self.weekdays = json_data['weekdays']
         self.years = json_data['years']
+        self.type = 'calendars'
 
     def get_month_names(self):
         names = ''
@@ -166,6 +167,7 @@ class Item(Entity):
         super(Item, self).__init__(campaign_id, json_data)
         self.location_id = json_data['location_id']
         self.character_id = json_data['character_id']
+        self.type = 'items'
 
 
 class Journal(Entity):
@@ -173,6 +175,7 @@ class Journal(Entity):
         super(Journal, self).__init__(campaign_id, json_data)
         self.date = json_data['date']
         self.character_id = json_data['character_id']
+        self.type = 'journals'
 
 
 class Organisation(Entity):
@@ -180,6 +183,7 @@ class Organisation(Entity):
         super(Organisation, self).__init__(campaign_id, json_data)
         self.location_id = json_data['location_id']
         self.members = json_data['members']
+        self.type = 'organisations'
 
 
 class Quest(Entity):
@@ -190,18 +194,21 @@ class Quest(Entity):
         self.is_completed = json_data['is_completed']
         self.locations = json_data['locations']
         self.parent_quest_id = json_data['quest_id']
+        self.type = 'quests'
 
 
 class Tag(Entity):
     def __init__(self, campaign_id, json_data):
         super(Tag, self).__init__(campaign_id, json_data)
         self.tag_id = json_data['tag_id']
+        self.type = 'tags'
 
 
 class Note(Entity):
     def __init__(self, campaign_id, json_data):
         super(Note, self).__init__(campaign_id, json_data)
         self.is_pinned = json_data['is_pinned']
+        self.type = 'notes'
 
 
 class KankaView(commands.Cog):
@@ -353,12 +360,23 @@ class KankaView(commands.Cog):
                         ID_MAP[entity.entity_id] = entity.id
                     page += 1
 
-    async def _parse_entry(self, ctx, campaign_id, entry):
+    async def _parse_entry(self, ctx, campaign_id, parent):
         # regex query to find mentions
         regex = re.compile('\[.*?\]')
 
+        # get the entity's entry
+        entry = parent.entry
+
+        # Discord limits the embed to 2048 characters, so lets save some work by cutting the length down to size
+        # at the end, we will create a "Read More" link to pretty things up.
+        if len(entry) > 2047:
+            entry = entry[:2047]
+
         # replace each mention with a hyperlink to the correct entity
         for mention in regex.findall(entry):
+            # initialize entity name
+            entity_name = ''
+
             # split the entity type and ID from the mention string
             delim = mention.find(':')
             if delim > 3:
@@ -366,7 +384,10 @@ class KankaView(commands.Cog):
                 end = mention.find('|')
                 if end < 4:
                     end = len(mention) - 1
-                entity_id = mention[delim + 1:end]
+                else:
+                    # we have an advanced mention here. Grab the name.
+                    entity_name = mention[end+1:len(mention)-1]
+                entity_id = mention[delim+1:end]
 
                 # convert entity type to plural
                 if entity_type == 'family':
@@ -379,8 +400,10 @@ class KankaView(commands.Cog):
 
                 # if we were able to retrieve the entity, build a hyperlink to replace the mention
                 if entity is not None and not await self._check_private(ctx.guild, entity):
+                    if not entity_name:
+                        entity_name = entity.name
                     url = '[{name}](https://kanka.io/{lang}/campaign/{cmpgn_id}/{type}/{id})'.format(
-                        name=entity.name,
+                        name=entity_name,
                         lang=await self._language(ctx),
                         cmpgn_id=await self._active(ctx),
                         type=entity_type,
@@ -391,6 +414,14 @@ class KankaView(commands.Cog):
                 else:
                     # otherwise, use 'Unknown' to CYA
                     entry = entry.replace(mention, 'Unknown')
+
+        # Entry length limit due to Discord embed rules
+        if len(entry) > 1900:
+            entry = entry[:1900] + '...' + '[ Read more.](https://kanka.io/{lang}/campaign/{cmpgn_id}/{type}/{id})'.format(
+                    lang=await self._language(ctx),
+                    cmpgn_id=await self._active(ctx),
+                    type=parent.type,
+                    id=parent.id)
 
         return entry
 
@@ -463,7 +494,7 @@ class KankaView(commands.Cog):
         # TODO: Add alias and name support
         campaign = await self._get_campaign(id)
         em = discord.Embed(title=campaign.name,
-                           description=await self._parse_entry(ctx, id, campaign.entry),
+                           description=await self._parse_entry(ctx, id, campaign),
                            url='https://kanka.io/{lang}/campaign/{id}'.format(
                                lang=await self._language(ctx),
                                id=campaign.id),
@@ -501,7 +532,7 @@ class KankaView(commands.Cog):
         char = await self._get_entity(await self._active(ctx), 'characters', character_id)
         if not await self._check_private(ctx.guild, char):
             em = discord.Embed(title=char.name,
-                               description=await self._parse_entry(ctx, await self._active(ctx), char.entry),
+                               description=await self._parse_entry(ctx, await self._active(ctx), char),
                                url='https://kanka.io/{lang}/campaign/'
                                    '{cmpgn_id}'
                                    '/characters/'
@@ -560,7 +591,7 @@ class KankaView(commands.Cog):
         location = await self._get_entity(await self._active(ctx), 'locations', location_id)
         if not await self._check_private(ctx.guild, location):
             em = discord.Embed(title=location.name,
-                               description=await self._parse_entry(ctx, await self._active(ctx), location.entry),
+                               description=await self._parse_entry(ctx, await self._active(ctx), location),
                                url='https://kanka.io/{lang}/campaign/'
                                    '{cmpgn_id}'
                                    '/locations/'
@@ -616,7 +647,7 @@ class KankaView(commands.Cog):
         event = await self._get_entity(await self._active(ctx), 'events', event_id)
         if not await self._check_private(ctx.guild, event):
             em = discord.Embed(title=event.name,
-                               description=await self._parse_entry(ctx, await self._active(ctx), event.entry),
+                               description=await self._parse_entry(ctx, await self._active(ctx), event),
                                url='https://kanka.io/{lang}/campaign/'
                                    '{cmpgn_id}'
                                    '/events/'
@@ -660,7 +691,7 @@ class KankaView(commands.Cog):
         family = await self._get_entity(await self._active(ctx), 'families', family_id)
         if not await self._check_private(ctx.guild, family):
             em = discord.Embed(title=family.name,
-                               description=await self._parse_entry(ctx, await self._active(ctx), family.entry),
+                               description=await self._parse_entry(ctx, await self._active(ctx), family),
                                url='https://kanka.io/{lang}/campaign/'
                                    '{cmpgn_id}'
                                    '/families/'
@@ -703,7 +734,7 @@ class KankaView(commands.Cog):
         calendar = await self._get_entity(await self._active(ctx), 'calendars', calendar_id)
         if not await self._check_private(ctx.guild, calendar):
             em = discord.Embed(title=calendar.name,
-                               description=await self._parse_entry(ctx, await self._active(ctx), calendar.entry),
+                               description=await self._parse_entry(ctx, await self._active(ctx), calendar),
                                url='https://kanka.io/{lang}/campaign/'
                                    '{cmpgn_id}'
                                    '/calendars/'
@@ -772,7 +803,7 @@ class KankaView(commands.Cog):
         item = await self._get_entity(await self._active(ctx), 'items', item_id)
         if not await self._check_private(ctx.guild, item):
             em = discord.Embed(title=item.name,
-                               description=await self._parse_entry(ctx, await self._active(ctx), item.entry),
+                               description=await self._parse_entry(ctx, await self._active(ctx), item),
                                url='https://kanka.io/{lang}/campaign/'
                                    '{cmpgn_id}'
                                    '/items/'
@@ -821,7 +852,7 @@ class KankaView(commands.Cog):
         journal = await self._get_entity(await self._active(ctx), 'journals', journal_id)
         if not await self._check_private(ctx.guild, journal):
             em = discord.Embed(title=journal.name,
-                               description=await self._parse_entry(ctx, await self._active(ctx), journal.entry),
+                               description=await self._parse_entry(ctx, await self._active(ctx), journal),
                                url='https://kanka.io/{lang}/campaign/'
                                    '{cmpgn_id}'
                                    '/journals/'
@@ -866,7 +897,7 @@ class KankaView(commands.Cog):
         organisation = await self._get_entity(await self._active(ctx), 'organisations', organisation_id)
         if not await self._check_private(ctx.guild, organisation):
             em = discord.Embed(title=organisation.name,
-                               description=await self._parse_entry(ctx, await self._active(ctx), organisation.entry),
+                               description=await self._parse_entry(ctx, await self._active(ctx), organisation),
                                url='https://kanka.io/{lang}/campaign/'
                                    '{cmpgn_id}'
                                    '/organisations/'
@@ -910,7 +941,7 @@ class KankaView(commands.Cog):
         quest = await self._get_entity(await self._active(ctx), 'quests', quest_id)
         if not await self._check_private(ctx.guild, quest):
             em = discord.Embed(title=quest.name,
-                               description=await self._parse_entry(ctx, await self._active(ctx), quest.entry),
+                               description=await self._parse_entry(ctx, await self._active(ctx), quest),
                                url='https://kanka.io/{lang}/campaign/'
                                    '{cmpgn_id}'
                                    '/quests/'
@@ -963,7 +994,7 @@ class KankaView(commands.Cog):
         tag = await self._get_entity(await self._active(ctx), 'tags', tag_id)
         if not await self._check_private(ctx.guild, tag):
             em = discord.Embed(title=tag.name,
-                               description=await self._parse_entry(ctx, await self._active(ctx), tag.entry),
+                               description=await self._parse_entry(ctx, await self._active(ctx), tag),
                                url='https://kanka.io/{lang}/campaign/'
                                    '{cmpgn_id}'
                                    '/tags/'
@@ -1006,7 +1037,7 @@ class KankaView(commands.Cog):
         note = await self._get_entity(await self._active(ctx), 'notes', note_id)
         if not await self._check_private(ctx.guild, note):
             em = discord.Embed(title=note.name,
-                               description=await self._parse_entry(ctx, await self._active(ctx), note.entry),
+                               description=await self._parse_entry(ctx, await self._active(ctx), note),
                                url='https://kanka.io/{lang}/campaign/'
                                    '{cmpgn_id}'
                                    '/notes/'
