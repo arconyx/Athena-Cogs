@@ -21,8 +21,8 @@ class Campaign:
         self.name = json_data['name']
         self.locale = json_data['locale']
         self.entry = tomd.convert(json_data['entry'])
-        if json_data['image']:
-            self.image = STORAGE_PATH + json_data['image']
+        if json_data['image_full']:
+            self.image = STORAGE_PATH + json_data['image_full']
         else:
             self.image = ''
         self.visibility = json_data['visibility']
