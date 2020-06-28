@@ -86,16 +86,14 @@ class Character(Entity):
         # self.race = json_data['race']
         self.sex = json_data['sex']
         self.title = json_data['title']
-        # API never seems to return entity_files as part of character response
-        # self.files = {}
-        # if json_data['entity_files']['data']:
-        #     for i in range(len(json_data['entity_files']['data'])):
-        #         # TODO: include private files if hide_private is false
-        #         if json_data['entity_files']['data'][i]['visibility'] == 'all':
-        #             self.files[json_data['entity_files']['data'][i]['name']] = json_data['entity_files']['data'][i]['path']
-        # else:
-        #     self.files = None
-        self.files = None
+        self.files = {}
+        if json_data['entity_files']:
+            for i in range(len(json_data['entity_files'])):
+                # TODO: include private files if hide_private is false
+                if json_data['entity_files'][i]['visibility'] == 'all':
+                    self.files[json_data['entity_files'][i]['name']] = json_data['entity_files'][i]['path']
+        else:
+            self.files = None
         self.type = 'characters'
 
 
@@ -316,6 +314,8 @@ class KankaView(commands.Cog):
                 return Tag(campaign_id, j['data'])
             elif entity_type == 'journals':
                 return Journal(campaign_id, j['data'])
+            elif entity_type == 'races':
+                return Race(campaign_id, j['data'])
             else:
                 return None
 
