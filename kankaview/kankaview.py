@@ -758,7 +758,7 @@ class KankaView(commands.Cog):
             return False
 
     @kanka.command(name='diceroll')
-    async def display_diceroll(self, ctx, diceroll_id):
+    async def display_diceroll(self, ctx, diceroll_id, alert=True):
         """Display selected dice roll."""
         # TODO: Attributes and relations
         try:
