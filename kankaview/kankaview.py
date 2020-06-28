@@ -21,8 +21,8 @@ class Campaign:
         self.name = json_data['name']
         self.locale = json_data['locale']
         self.entry = tomd.convert(json_data['entry'])
-        if json_data['image_full']:
-            self.image = STORAGE_PATH + json_data['image_full']
+        if json_data['image']:
+            self.image = STORAGE_PATH + json_data['image']
         else:
             self.image = ''
         self.visibility = json_data['visibility']
@@ -45,8 +45,8 @@ class DiceRoll:
         self.is_private = json_data['private']
         self.created = {'at': json_data['created_at']}
         self.updated = {'at': json_data['created_at']}
-        if json_data['image_full']:
-            self.image = STORAGE_PATH + json_data['image_full']
+        if json_data['image']:
+            self.image = STORAGE_PATH + json_data['image']
         else:
             self.image = ''
         self.tags = json_data['tags']
@@ -63,8 +63,8 @@ class Entity:
                                   + ' yet.</p>')
         self.entry = tomd.convert(json_data['entry'])
         self.id = json_data['id']
-        if json_data['image_full']:
-            self.image = STORAGE_PATH + json_data['image_full']
+        if json_data['image']:
+            self.image = STORAGE_PATH + json_data['image']
         else:
             self.image = ''
         self.is_private = json_data['is_private']
@@ -86,14 +86,16 @@ class Character(Entity):
         # self.race = json_data['race']
         self.sex = json_data['sex']
         self.title = json_data['title']
-        self.files = {}
-        if json_data['entity_files']['data']:
-            for i in range(len(json_data['entity_files']['data'])):
-                # TODO: include private files if hide_private is false
-                if json_data['entity_files']['data'][i]['visibility'] == 'all':
-                    self.files[json_data['entity_files']['data'][i]['name']] = json_data['entity_files']['data'][i]['path']
-        else:
-            self.file = None
+        # API never seems to return entity_files as part of character response
+        # self.files = {}
+        # if json_data['entity_files']['data']:
+        #     for i in range(len(json_data['entity_files']['data'])):
+        #         # TODO: include private files if hide_private is false
+        #         if json_data['entity_files']['data'][i]['visibility'] == 'all':
+        #             self.files[json_data['entity_files']['data'][i]['name']] = json_data['entity_files']['data'][i]['path']
+        # else:
+        #     self.files = None
+        self.files = None
         self.type = 'characters'
 
 
