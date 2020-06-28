@@ -28,7 +28,7 @@ class Campaign:
         self.visibility = json_data['visibility']
         self.created_at = json_data['created_at']
         self.updated_at = json_data['updated_at']
-        self.members = json_data['members']['data']
+        self.members = json_data['members']
         self.type = 'campaign'
 
 
