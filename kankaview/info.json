@@ -1,5 +1,5 @@
 {
-    "author" : "ArcOnyx",
+    "author" : ["ArcOnyx", "AG The Guardian"],
     "bot_version": [3,0,0],
     "description" : "Access entities from all your Kanka campaigns in Discord.",
     "install_msg" : "Thanks for installing KankaView! This ties into the API for Kanka, a fantastic worldbuilding and campaign management tool. You can find it here: https://kanka.io\nBe aware that you'll need to set an application token to use the API - you can get tokens from your profile page on the site.",
