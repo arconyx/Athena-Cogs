@@ -45,8 +45,8 @@ class DiceRoll:
         self.is_private = json_data['private']
         self.created = {'at': json_data['created_at']}
         self.updated = {'at': json_data['created_at']}
-        if json_data['image']:
-            self.image = STORAGE_PATH + json_data['image']
+        if json_data['image_full']:
+            self.image = STORAGE_PATH + json_data['image_full']
         else:
             self.image = ''
         self.tags = json_data['tags']
@@ -63,8 +63,8 @@ class Entity:
                                   + ' yet.</p>')
         self.entry = tomd.convert(json_data['entry'])
         self.id = json_data['id']
-        if json_data['image']:
-            self.image = STORAGE_PATH + json_data['image']
+        if json_data['image_full']:
+            self.image = STORAGE_PATH + json_data['image_full']
         else:
             self.image = ''
         self.is_private = json_data['is_private']
@@ -209,6 +209,13 @@ class Note(Entity):
         super(Note, self).__init__(campaign_id, json_data)
         self.is_pinned = json_data['is_pinned']
         self.type = 'notes'
+
+
+class Race(Entity):
+    def __init__(self, campaign_id, json_data):
+        super(Race, self).__init__(campaign_id, json_data)
+        self.parent_race_id = json_data['race_id']
+        self.type = 'races'
 
 
 class KankaView(commands.Cog):
@@ -444,7 +451,7 @@ class KankaView(commands.Cog):
         return True
 
     async def _search(self, kind, cmpgn_id, query):
-        # TODO: Enable after search support releases
+        # TODO: Remove kind requirement
         async with self.session.get(
                 '{base_url}campaigns/{cmpgn_id}/search/{query}'.format(
                     base_url=REQUEST_PATH,
@@ -546,12 +553,12 @@ class KankaView(commands.Cog):
             em.add_field(name='Title', value=char.title)
             em.add_field(name='Age', value=char.age)
             em.add_field(name='Type', value=char.kind)
-            # em.add_field(name='Race', value=char.race)
+            # em.add_field(name='Race', value=char.race) # TODO: Display race
             if char.is_dead:
                 em.add_field(name='Status', value='Dead')
             else:
                 em.add_field(name='Status', value='Alive')
-            em.add_field(name='Sex', value=char.sex)
+            em.add_field(name='Gender', value=char.sex)
             if char.location_id is not None:
                 em.add_field(name='Location', value='[View Location](https://kanka.io/{lang}/'
                                                     'campaign/'
@@ -1024,7 +1031,6 @@ class KankaView(commands.Cog):
     async def display_note(self, ctx, note_id, alert=True):
         """Display selected note."""
         # TODO: Attributes and relations
-        # TODO: Get and list children and subcategories
         try:
             note_id = int(note_id)
         except ValueError:
@@ -1056,6 +1062,50 @@ class KankaView(commands.Cog):
                 await ctx.send(MSG_ENTITY_NOT_FOUND)
             return False
 
+    @kanka.command(name='race')
+    async def display_race(self, ctx, race_id, alert=True):
+        # TODO: Attributes and relations
+        try:
+            race_id = int(race_id)
+        except ValueError:
+            race_id = await self._search('race', await self._active(ctx),
+                                         race_id)
+            if race_id == 'NoResults':
+                if alert:
+                    await ctx.send(MSG_ENTITY_NOT_FOUND)
+                return False
+        race = await self._get_entity(await self._active(ctx), 'races', race_id)
+        if not await self._check_private(ctx.guild, race):
+            em = discord.Embed(title=race.name,
+                               description=await self._parse_entry(ctx, await self._active(ctx), race),
+                               url='https://kanka.io/{lang}/campaign/'
+                                   '{cmpgn_id}'
+                                   '/races/'
+                                   '{race_id}'
+                               .format(
+                                   lang=await self._language(ctx),
+                                   cmpgn_id=await self._active(ctx),
+                                   race_id=race_id),
+                               colour=discord.Color.blue())
+            em.set_thumbnail(url=race.image)
+            em.add_field(name='Type', value=race.kind)
+            if race.parent_race_id is not None:
+                em.add_field(name='Parent Race',
+                             value='[View Parent Race](https://kanka.io/{lang}/campaign/{cmpgn_id}/'
+                                   'races/{parent_race_id})'
+                             .format(lang=await self._language(ctx),
+                                     cmpgn_id=await self._active(ctx),
+                                     parent_race_id=race.parent_race_id
+                                     )
+                             )
+            # TODO: Display parent name as link instead of id
+            await ctx.send(embed=em)
+            return True
+        else:
+            if alert:
+                await ctx.send(MSG_ENTITY_NOT_FOUND)
+            return False
+
     @kanka.command(name='search')
     async def display_search(self, ctx, search_id):
         """Display selected Entity."""
@@ -1075,6 +1125,8 @@ class KankaView(commands.Cog):
         elif await self.display_note(ctx, search_id, False):
             return
         elif await self.display_event(ctx, search_id, False):
+            return
+        elif await self.display_race(ctx, search_id, False):
             return
         elif await self.display_calendar(ctx, search_id, False):
             return
