@@ -355,12 +355,13 @@ class KankaView(commands.Cog):
                                         '{campaign_id}'
                                         '/{entity_type}'
                                         '?page={page}'.format(
-                base_url=REQUEST_PATH,
-                campaign_id=campaign_id,
-                entity_type=entity_type,
-                page=page)
+                    base_url=REQUEST_PATH,
+                    campaign_id=campaign_id,
+                    entity_type=entity_type,
+                    page=page)
             ) as r:
                 j = await r.json()
+                # Use meta element page count instead?
                 if len(j['data']) == 0:
                     done = True
                 else:
@@ -432,6 +433,7 @@ class KankaView(commands.Cog):
                     type=parent.type,
                     id=parent.id)
 
+        # TODO: Parse out images
         return entry
 
     async def _get_mention(self, campaign_id, entity_type, entity_id):
@@ -524,6 +526,8 @@ class KankaView(commands.Cog):
         await self._load_entity_id_map(id)
         await ctx.send(str(len(ID_MAP)) + ' Entities loaded.')
 
+    # TODO: Can a basic entity embed template be created?
+    # Right now there is a lot of repetition
     @kanka.command(name='character')
     async def display_character(self, ctx, character_id, alert=True):
         """Display selected character."""
@@ -538,7 +542,9 @@ class KankaView(commands.Cog):
                 if alert:
                     await ctx.send(MSG_ENTITY_NOT_FOUND)
                 return False
-        char = await self._get_entity(await self._active(ctx), 'characters', character_id)
+
+        char = await self._get_entity(await self._active(ctx), 'characters',
+                                      character_id)
         if not await self._check_private(ctx.guild, char):
             em = discord.Embed(title=char.name,
                                description=await self._parse_entry(ctx, await self._active(ctx), char),
@@ -556,27 +562,76 @@ class KankaView(commands.Cog):
             em.add_field(name='Age', value=char.age)
             em.add_field(name='Type', value=char.kind)
             # em.add_field(name='Race', value=char.race) # TODO: Display race
+
             if char.is_dead:
                 em.add_field(name='Status', value='Dead')
             else:
                 em.add_field(name='Status', value='Alive')
             em.add_field(name='Gender', value=char.sex)
+
             if char.location_id is not None:
-                em.add_field(name='Location', value='[View Location](https://kanka.io/{lang}/'
-                                                    'campaign/'
-                                                    '{cmpgn_id}'
-                                                    '/locations/'
-                                                    '{location_id})'
-                             .format(
-                    lang=await self._language(ctx),
-                    cmpgn_id=await self._active(ctx),
-                    location_id=char.location_id))
+                # TODO: Move link generation into function
+                location = await self._get_entity(985, 'locations',
+                                                  char.location_id)
+                if not await self._check_private(ctx.guild, location):
+                    em.add_field(name='Location', value='[{location_name}]'
+                                 '(https://kanka.io/'
+                                 '{lang}/'
+                                 'campaign/'
+                                 '{cmpgn_id}/'
+                                 'locations/'
+                                 '{location_id})'
+                                 .format(
+                                         location_name=location.name,
+                                         lang=await self._language(ctx),
+                                         cmpgn_id=await self._active(ctx),
+                                         location_id=location.id
+                                         )
+                                 )
+
             if char.files:
                 value = ''
                 for file_name in char.files:
                     value += '[{name}]({path}), '.format(name=file_name, path=char.files[file_name])
                 em.add_field(name='Files', value=value[0:len(value) - 2])
-            # TODO: Add family
+
+            if char.family_id:
+                family = await self._get_entity(985, 'families',
+                                                char.family_id)
+                if not await self._check_private(ctx.guild, family):
+                    em.add_field(name='Family', value='[{family_name}]'
+                                 '(https://kanka.io/'
+                                 '{lang}/'
+                                 'campaign/'
+                                 '{cmpgn_id}/'
+                                 'families/'
+                                 '{family_id})'
+                                 .format(
+                                         family_name=family.name,
+                                         lang=await self._language(ctx),
+                                         cmpgn_id=await self._active(ctx),
+                                         family_id=family.id
+                                         )
+                                 )
+
+            if char.tags:
+                tags = []
+                for tag_id in char.tags:
+                    tag = await self._get_entity(985, 'tags', tag_id)
+                    if not await self._check_private(ctx.guild, tag):
+                        tags.append('[{tag_name}]'
+                                    '(https://kanka.io/{lang}/'
+                                    'campaign/{cmpgn_id}'
+                                    '/tags/{tag_id})'.format(
+                                           tag_name=tag.name,
+                                           lang=await self._language(ctx),
+                                           cmpgn_id=await self._active(ctx),
+                                           tag_id=tag.id
+                                           )
+                                    )
+                if tags != []:  # Hide tag field when all are private
+                    em.add_field(name='Tags', value=', '.join(tags))
+
             await ctx.send(embed=em)
             return True
         else:
@@ -618,9 +673,9 @@ class KankaView(commands.Cog):
                                                '{location_id}'
                                                '/map)'
                              .format(
-                    lang=await self._language(ctx),
-                    cmpgn_id=await self._active(ctx),
-                    location_id=location_id
+                                lang=await self._language(ctx),
+                                cmpgn_id=await self._active(ctx),
+                                location_id=location_id
                 )
                              )
             if location.parent_location_id is not None:
