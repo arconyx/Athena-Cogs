@@ -74,6 +74,18 @@ class Entity:
                         'by': json_data['updated_by']}
         self.kind = json_data['type']
 
+    def link(self, lang='en', pretty=True):  # TODO: Improve language support?
+        link = ('https://kanka.io/{lang}/campaign/'
+                '{cmpgn_id}/{type}/{id}').format(
+                             lang=lang,
+                             cmpgn_id=self.campaign_id,
+                             type=self.type,
+                             id=self.id
+                             )
+        if pretty:
+            link = '[{name}]({link})'.format(name=self.name, link=link)
+        return link
+
 
 class Character(Entity):
     def __init__(self, campaign_id, json_data):
@@ -82,8 +94,7 @@ class Character(Entity):
         self.family_id = json_data['family_id']
         self.is_dead = json_data['is_dead']
         self.location_id = json_data['location_id']
-        # TODO: Add race support back
-        # self.race = json_data['race']
+        self.race_id = json_data['race_id']
         self.sex = json_data['sex']
         self.title = json_data['title']
         self.files = {}
@@ -279,6 +290,7 @@ class KankaView(commands.Cog):
     async def _get_entity(self, campaign_id, entity_type, entity_id):
         # to get related entities, add related=1 URL parameter
         # currently only being used for characters
+        # Move privacy checking into here?
         if entity_type == 'characters':
             entity_id = str(entity_id) + '?related=1'
 
@@ -286,10 +298,10 @@ class KankaView(commands.Cog):
                                     '{campaign_id}'
                                     '/{entity_type}/'
                                     '{entity_id}'.format(
-            base_url=REQUEST_PATH,
-            campaign_id=campaign_id,
-            entity_type=entity_type,
-            entity_id=entity_id)
+                base_url=REQUEST_PATH,
+                campaign_id=campaign_id,
+                entity_type=entity_type,
+                entity_id=entity_id)
         ) as r:
             j = await r.json()
             if entity_type == 'locations':
@@ -326,9 +338,9 @@ class KankaView(commands.Cog):
                                     '{campaign_id}'
                                     '/dice_rolls/'
                                     '{diceroll_id}'.format(
-            base_url=REQUEST_PATH,
-            campaign_id=campaign_id,
-            diceroll_id=diceroll_id)
+                base_url=REQUEST_PATH,
+                campaign_id=campaign_id,
+                diceroll_id=diceroll_id)
         ) as r:
             j = await r.json()
             return DiceRoll(campaign_id, j['data'])
@@ -526,6 +538,26 @@ class KankaView(commands.Cog):
         await self._load_entity_id_map(id)
         await ctx.send(str(len(ID_MAP)) + ' Entities loaded.')
 
+    async def _display_entity(self, ctx, entity, alert=True):
+        """Generate basic embed for any entity type"""
+        if await self._check_private(ctx.guild, entity):
+            if alert:
+                await ctx.send(MSG_ENTITY_NOT_FOUND)
+            return None
+
+        em = discord.Embed(
+                title=entity.name,
+                description=await self._parse_entry(
+                                                ctx,
+                                                await self._active(ctx),
+                                                entity),
+                url=entity.link(lang=await self._language(ctx), pretty=False),
+                colour=discord.Color.blue())
+        em.set_image(url=entity.image)
+        em.add_field(name='Type', value=entity.kind)
+
+        return em
+
     # TODO: Can a basic entity embed template be created?
     # Right now there is a lot of repetition
     @kanka.command(name='character')
@@ -545,99 +577,58 @@ class KankaView(commands.Cog):
 
         char = await self._get_entity(await self._active(ctx), 'characters',
                                       character_id)
-        if not await self._check_private(ctx.guild, char):
-            em = discord.Embed(title=char.name,
-                               description=await self._parse_entry(ctx, await self._active(ctx), char),
-                               url='https://kanka.io/{lang}/campaign/'
-                                   '{cmpgn_id}'
-                                   '/characters/'
-                                   '{character_id}'
-                               .format(
-                                   lang=await self._language(ctx),
-                                   cmpgn_id=await self._active(ctx),
-                                   character_id=character_id),
-                               colour=discord.Color.blue())
-            em.set_image(url=char.image)
-            em.add_field(name='Title', value=char.title)
-            em.add_field(name='Age', value=char.age)
-            em.add_field(name='Type', value=char.kind)
-            # em.add_field(name='Race', value=char.race) # TODO: Display race
-
-            if char.is_dead:
-                em.add_field(name='Status', value='Dead')
-            else:
-                em.add_field(name='Status', value='Alive')
-            em.add_field(name='Gender', value=char.sex)
-
-            if char.location_id is not None:
-                # TODO: Move link generation into function
-                location = await self._get_entity(985, 'locations',
-                                                  char.location_id)
-                if not await self._check_private(ctx.guild, location):
-                    em.add_field(name='Location', value='[{location_name}]'
-                                 '(https://kanka.io/'
-                                 '{lang}/'
-                                 'campaign/'
-                                 '{cmpgn_id}/'
-                                 'locations/'
-                                 '{location_id})'
-                                 .format(
-                                         location_name=location.name,
-                                         lang=await self._language(ctx),
-                                         cmpgn_id=await self._active(ctx),
-                                         location_id=location.id
-                                         )
-                                 )
-
-            if char.files:
-                value = ''
-                for file_name in char.files:
-                    value += '[{name}]({path}), '.format(name=file_name, path=char.files[file_name])
-                em.add_field(name='Files', value=value[0:len(value) - 2])
-
-            if char.family_id:
-                family = await self._get_entity(985, 'families',
-                                                char.family_id)
-                if not await self._check_private(ctx.guild, family):
-                    em.add_field(name='Family', value='[{family_name}]'
-                                 '(https://kanka.io/'
-                                 '{lang}/'
-                                 'campaign/'
-                                 '{cmpgn_id}/'
-                                 'families/'
-                                 '{family_id})'
-                                 .format(
-                                         family_name=family.name,
-                                         lang=await self._language(ctx),
-                                         cmpgn_id=await self._active(ctx),
-                                         family_id=family.id
-                                         )
-                                 )
-
-            if char.tags:
-                tags = []
-                for tag_id in char.tags:
-                    tag = await self._get_entity(985, 'tags', tag_id)
-                    if not await self._check_private(ctx.guild, tag):
-                        tags.append('[{tag_name}]'
-                                    '(https://kanka.io/{lang}/'
-                                    'campaign/{cmpgn_id}'
-                                    '/tags/{tag_id})'.format(
-                                           tag_name=tag.name,
-                                           lang=await self._language(ctx),
-                                           cmpgn_id=await self._active(ctx),
-                                           tag_id=tag.id
-                                           )
-                                    )
-                if tags != []:  # Hide tag field when all are private
-                    em.add_field(name='Tags', value=', '.join(tags))
-
-            await ctx.send(embed=em)
-            return True
-        else:
-            if alert:
-                await ctx.send(MSG_ENTITY_NOT_FOUND)
+        em = await self._display_entity(ctx, char, alert)
+        if em is None:
             return False
+
+        lang = await self._language(ctx)
+        cmpgn_id = await self._active(ctx)
+
+        em.add_field(name='Title', value=char.title)
+        em.add_field(name='Age', value=char.age)
+        em.add_field(name='Gender', value=char.sex)
+
+        if char.is_dead:
+            em.add_field(name='Status', value='Dead')
+        else:
+            em.add_field(name='Status', value='Alive')
+
+        if char.race_id:
+            race = await self._get_entity(985, 'races', char.race_id)
+            if not await self._check_private(ctx.guild, race):
+                em.add_field(name='Race', value=race.link(lang))
+
+        if char.location_id is not None:
+            # TODO: Move link generation into function
+            location = await self._get_entity(985, 'locations',
+                                              char.location_id)
+            if not await self._check_private(ctx.guild, location):
+                em.add_field(name='Location', value=location.link(lang))
+
+        if char.files:
+            value = ''
+            for file_name in char.files:
+                value += '[{name}]({path}), '.format(name=file_name, path=char.files[file_name])
+            em.add_field(name='Files', value=value[0:len(value) - 2])
+
+        if char.family_id:
+            family = await self._get_entity(985, 'families',
+                                            char.family_id)
+            if not await self._check_private(ctx.guild, family):
+                em.add_field(name='Family', value=family.link(lang))
+
+        if char.tags:
+            tags = []
+            for tag_id in char.tags:
+                tag = await self._get_entity(985, 'tags', tag_id)
+                if not await self._check_private(ctx.guild, tag):
+                    tags.append(tag.link(lang))
+            if tags != []:  # Hide tag field when all are private
+                em.add_field(name='Tags', value=', '.join(tags))
+
+        await ctx.send(embed=em)
+        return True
+
 
     @kanka.command(name='location')
     async def display_location(self, ctx, location_id, alert=True):
