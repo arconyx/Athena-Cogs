@@ -1,7 +1,7 @@
 from redbot.core import commands, Config, checks
 import discord
 import aiohttp
-import tomd
+from markdownify import markdownify as md
 # import json
 import re
 
@@ -20,7 +20,7 @@ class Campaign:
         self.id = json_data['id']
         self.name = json_data['name']
         self.locale = json_data['locale']
-        self.entry = tomd.convert(json_data['entry'])
+        self.entry = md(json_data['entry'], strip=['img'])
         if json_data['image']:
             self.image = STORAGE_PATH + json_data['image']
         else:
@@ -58,21 +58,26 @@ class Entity:
         self.created = {'at': json_data['created_at'],
                         'by': json_data['created_by']}
         self.entity_id = json_data['entity_id']
-        if json_data['entry'] is None:
-            json_data['entry'] = ('<p>This entity doesn\'t have an description'
-                                  + ' yet.</p>')
-        self.entry = tomd.convert(json_data['entry'])
+
+        if json_data['entry_parsed'] is None:
+            json_data['entry_parsed'] = ('<p>This entity doesn\'t '
+                                         'have an description yet.</p>')
+        self.entry = md(json_data['entry_parsed'], strip=['img'])
+
         self.id = json_data['id']
+
         if json_data['image']:
             self.image = STORAGE_PATH + json_data['image']
         else:
             self.image = ''
+
         self.is_private = json_data['is_private']
         self.name = json_data['name']
         self.tags = json_data['tags']
         self.updated = {'at': json_data['updated_at'],
                         'by': json_data['updated_by']}
         self.kind = json_data['type']
+
         self.files = {}
         if 'entity_files' in json_data:
             for i in range(len(json_data['entity_files'])):
@@ -359,7 +364,8 @@ class KankaView(commands.Cog):
         await self._load_entity_ids_by_type(campaign_id, 'tags')
 
     async def _load_entity_ids_by_type(self, campaign_id, entity_type):
-        # API will only load 15-100 entities at a time. Increment the page and load more if needed
+        # API will only load 15-100 entities at a time.
+        # Increment the page and load more if needed
         done = False
         page = 1
         while not done:
@@ -382,11 +388,7 @@ class KankaView(commands.Cog):
                         ID_MAP[entity.entity_id] = entity.id
                     page += 1
 
-    async def _parse_entry(self, ctx, campaign_id, parent):
-        # TODO: Can the provided parsed value be used instead
-        # regex query to find mentions
-        regex = re.compile('\[.*?\]')
-
+    async def _parse_entry(self, ctx, parent):
         # get the entity's entry
         entry = parent.entry
 
@@ -396,52 +398,9 @@ class KankaView(commands.Cog):
         if len(entry) > 2047:
             entry = entry[:2047]
 
-        # replace each mention with a hyperlink to the correct entity
-        for mention in regex.findall(entry):
-            # initialize entity name
-            entity_name = ''
-
-            # split the entity type and ID from the mention string
-            delim = mention.find(':')
-            if delim > 3:
-                entity_type = mention[1:delim]
-                end = mention.find('|')
-                if end < 4:
-                    end = len(mention) - 1
-                else:
-                    # we have an advanced mention here. Grab the name.
-                    entity_name = mention[end+1:len(mention)-1]
-                entity_id = mention[delim+1:end]
-
-                # convert entity type to plural
-                if entity_type == 'family':
-                    entity_type = 'families'
-                else:
-                    entity_type += 's'
-
-                # get the entity using its type and ID
-                entity = await self._get_mention(campaign_id, entity_type,
-                                                 int(entity_id))
-
-                # if we were able to retrieve the entity,
-                # build a hyperlink to replace the mention
-                if entity is not None and not await self._check_private(
-                                                            ctx.guild, entity):
-                    if not entity_name:
-                        entity_name = entity.name
-                    # Can't use link method of class because of custom names
-                    url = '[{name}](https://kanka.io/{lang}/campaign/{cmpgn_id}/{type}/{id})'.format(
-                        name=entity_name,
-                        lang=await self._language(ctx),
-                        cmpgn_id=await self._active(ctx),
-                        type=entity_type,
-                        id=entity.id
-                    )
-                    # replace the mention string with the hyperlink
-                    entry = entry.replace(mention, url)
-                else:
-                    # otherwise, use 'Unknown' to CYA
-                    entry = entry.replace(mention, 'Unknown')
+        url = 'https://kanka.io/{lang}/campaign/'.format(
+                                                lang=await self._language(ctx))
+        entry = entry.replace('https://kanka.io/campaign/', url)
 
         # Entry length limit due to Discord embed rules
         if len(entry) > 1900:
@@ -539,8 +498,7 @@ class KankaView(commands.Cog):
         # TODO: Add alias and name support
         campaign = await self._get_campaign(id)
         em = discord.Embed(title=campaign.name,
-                           description=await self._parse_entry(ctx, id,
-                                                               campaign),
+                           description=await self._parse_entry(ctx, campaign),
                            url='https://kanka.io/{lang}/campaign/{id}'.format(
                                lang=await self._language(ctx),
                                id=campaign.id),
@@ -573,10 +531,7 @@ class KankaView(commands.Cog):
 
         em = discord.Embed(
                 title=entity.name,
-                description=await self._parse_entry(
-                                                ctx,
-                                                await self._active(ctx),
-                                                entity),
+                description=await self._parse_entry(ctx, entity),
                 url=entity.link(lang=lang, pretty=False),
                 colour=discord.Color.blue())
         em.set_image(url=entity.image)
