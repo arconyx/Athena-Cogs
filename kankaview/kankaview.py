@@ -721,6 +721,7 @@ class KankaView(commands.Cog):
     @kanka.command(name='family')
     async def display_family(self, ctx, family_id, alert=True):
         """Display selected family."""
+        # TODO: Add parent display
         try:
             family_id = int(family_id)
         except ValueError:
@@ -861,40 +862,30 @@ class KankaView(commands.Cog):
                 if alert:
                     await ctx.send(MSG_ENTITY_NOT_FOUND)
                 return False
-        journal = await self._get_entity(await self._active(ctx), 'journals', journal_id)
-        if not await self._check_private(ctx.guild, journal):
-            em = discord.Embed(title=journal.name,
-                               description=await self._parse_entry(ctx, await self._active(ctx), journal),
-                               url='https://kanka.io/{lang}/campaign/'
-                                   '{cmpgn_id}'
-                                   '/journals/'
-                                   '{journal_id}'
-                               .format(
-                                   lang=await self._language(ctx),
-                                   cmpgn_id=await self._active(ctx),
-                                   journal_id=journal_id),
-                               colour=discord.Color.blue())
-            em.set_thumbnail(url=journal.image)
-            em.add_field(name='Author',
-                         value='[View Author](https://kanka.io/{lang}/campaign/{cmpgn_id}/'
-                               'characters/{character_id})'
-                         .format(lang=await self._language(ctx),
-                                 cmpgn_id=await self._active(ctx),
-                                 character_id=journal.character_id
-                                 ))
-            em.add_field(name='Date', value=journal.date)
-            em.add_field(name='Type', value=journal.kind)
-            await ctx.send(embed=em)
-            return True
-        else:
-            if alert:
-                await ctx.send(MSG_ENTITY_NOT_FOUND)
+        journal = await self._get_entity(await self._active(ctx), 'journals',
+                                         journal_id)
+
+        em = await self._display_entity(ctx, journal, alert)
+        if em is None:
             return False
+
+        lang = await self._language(ctx)
+        cmpgn_id = journal.campaign_id
+
+        if journal.date is not None:
+            em.add_field(name='Date', value=journal.date)
+
+        if journal.character_id is not None:
+            author = await self._get_entity(cmpgn_id, 'journals',
+                                            journal.character_id)
+            em.add_field(name='Author', value=author.link(lang))
+
+        await ctx.send(embed=em)
+        return True
 
     @kanka.command(name='organisation')
     async def display_organisation(self, ctx, organisation_id, alert=True):
         """Display selected organisation."""
-        # TODO: Attributes and relations
         # TODO: Get and list members
         try:
             organisation_id = int(organisation_id)
@@ -906,40 +897,30 @@ class KankaView(commands.Cog):
                 if alert:
                     await ctx.send(MSG_ENTITY_NOT_FOUND)
                 return False
-        organisation = await self._get_entity(await self._active(ctx), 'organisations', organisation_id)
-        if not await self._check_private(ctx.guild, organisation):
-            em = discord.Embed(title=organisation.name,
-                               description=await self._parse_entry(ctx, await self._active(ctx), organisation),
-                               url='https://kanka.io/{lang}/campaign/'
-                                   '{cmpgn_id}'
-                                   '/organisations/'
-                                   '{organisation_id}'
-                               .format(
-                                   lang=await self._language(ctx),
-                                   cmpgn_id=await self._active(ctx),
-                                   organisation_id=organisation_id),
-                               colour=discord.Color.blue())
-            em.set_thumbnail(url=organisation.image)
-            em.add_field(name='Location',
-                         value='[View Location](https://kanka.io/{lang}/campaign/{cmpgn_id}/'
-                               'locations/{location_id})'
-                         .format(lang=await self._language(ctx),
-                                 cmpgn_id=await self._active(ctx),
-                                 location_id=organisation.location_id
-                                 ))
-            em.add_field(name='Members', value=organisation.members)
-            em.add_field(name='Type', value=organisation.kind)
-            await ctx.send(embed=em)
-            return True
-        else:
-            if alert:
-                await ctx.send(MSG_ENTITY_NOT_FOUND)
+        organisation = await self._get_entity(await self._active(ctx),
+                                              'organisations', organisation_id)
+
+        em = await self._display_entity(ctx, organisation, alert)
+        if em is None:
             return False
+
+        lang = await self._language(ctx)
+        cmpgn_id = organisation.campaign_id
+
+        # Turn into a link?
+        em.add_field(name='Members', value=organisation.members)
+
+        if organisation.location_id is not None:
+            location = await self._get_entity(cmpgn_id, 'locations',
+                                              organisation.location_id)
+            em.add_field(name='Location', value=location.link(lang))
+
+        await ctx.send(embed=em)
+        return True
 
     @kanka.command(name='quest')
     async def display_quest(self, ctx, quest_id, alert=True):
         """Display selected quest."""
-        # TODO: Attributes and relations
         # TODO: Get and list members
         try:
             quest_id = int(quest_id)
@@ -950,49 +931,40 @@ class KankaView(commands.Cog):
                 if alert:
                     await ctx.send(MSG_ENTITY_NOT_FOUND)
                 return False
-        quest = await self._get_entity(await self._active(ctx), 'quests', quest_id)
-        if not await self._check_private(ctx.guild, quest):
-            em = discord.Embed(title=quest.name,
-                               description=await self._parse_entry(ctx, await self._active(ctx), quest),
-                               url='https://kanka.io/{lang}/campaign/'
-                                   '{cmpgn_id}'
-                                   '/quests/'
-                                   '{quest_id}'
-                               .format(
-                                   lang=await self._language(ctx),
-                                   cmpgn_id=await self._active(ctx),
-                                   quest_id=quest_id),
-                               colour=discord.Color.blue())
-            em.set_thumbnail(url=quest.image)
-            em.add_field(name='Instigator',
-                         value='[View Instigator](https://kanka.io/{lang}/campaign/{cmpgn_id}/'
-                               'characters/{character_id})'
-                         .format(lang=await self._language(ctx),
-                                 cmpgn_id=await self._active(ctx),
-                                 character_id=quest.character_id
-                                 ))
-            em.add_field(name='Completed', value=quest.is_completed)
-            em.add_field(name='Characters', value=quest.characters)
-            em.add_field(name='Parent Quest',
-                         value='[View Parent Quest](https://kanka.io/{lang}/campaign/{cmpgn_id}/'
-                               'quests/{quest_id})'
-                         .format(lang=await self._language(ctx),
-                                 cmpgn_id=await self._active(ctx),
-                                 quest_id=quest.parent_quest_id
-                                 ))
-            em.add_field(name='Locations', value=quest.locations)
-            em.add_field(name='Type', value=quest.kind)
-            await ctx.send(embed=em)
-            return True
-        else:
-            if alert:
-                await ctx.send(MSG_ENTITY_NOT_FOUND)
+        quest = await self._get_entity(await self._active(ctx), 'quests',
+                                       quest_id)
+
+        em = await self._display_entity(ctx, quest, alert)
+        if em is None:
             return False
+
+        lang = await self._language(ctx)
+        cmpgn_id = quest.campaign_id
+
+        if quest.character_id is not None:
+            instigator = await self._get_entity(cmpgn_id, 'characters',
+                                                quest.character_id)
+            em.add_field(name='Instigator', value=instigator.link(lang))
+
+        em.add_field(name='Completed', value=quest.is_completed)
+        em.add_field(name='Characters', value=quest.characters)
+
+        if quest.parent_quest_id is not None:
+            parent = await self._get_entity(cmpgn_id,
+                                            'quests',
+                                            quest.parent_quest_id)
+            em.add_field(name='Parent Quest',
+                         value=parent.link(lang)
+                         )
+
+        em.add_field(name='Locations', value=quest.locations)
+
+        await ctx.send(embed=em)
+        return True
 
     @kanka.command(name='tag')
     async def display_tag(self, ctx, tag_id, alert=True):
         """Display selected tag."""
-        # TODO: Attributes and relations
         # TODO: Get and list children and subcategories
         try:
             tag_id = int(tag_id)
@@ -1004,33 +976,21 @@ class KankaView(commands.Cog):
                     await ctx.send(MSG_ENTITY_NOT_FOUND)
                 return False
         tag = await self._get_entity(await self._active(ctx), 'tags', tag_id)
-        if not await self._check_private(ctx.guild, tag):
-            em = discord.Embed(title=tag.name,
-                               description=await self._parse_entry(ctx, await self._active(ctx), tag),
-                               url='https://kanka.io/{lang}/campaign/'
-                                   '{cmpgn_id}'
-                                   '/tags/'
-                                   '{tag_id}'
-                               .format(
-                                   lang=await self._language(ctx),
-                                   cmpgn_id=await self._active(ctx),
-                                   tag_id=tag_id),
-                               colour=discord.Color.blue())
-            em.set_thumbnail(url=tag.image)
-            em.add_field(name='Parent Tag',
-                         value='[View Parent Tag](https://kanka.io/{lang}/campaign/{cmpgn_id}/'
-                               'tags/{tag_id})'
-                         .format(lang=await self._language(ctx),
-                                 cmpgn_id=await self._active(ctx),
-                                 tag_id=tag.tag_id
-                                 ))
-            em.add_field(name='Type', value=tag.kind)
-            await ctx.send(embed=em)
-            return True
-        else:
-            if alert:
-                await ctx.send(MSG_ENTITY_NOT_FOUND)
+
+        em = await self._display_entity(ctx, tag, alert)
+        if em is None:
             return False
+
+        lang = await self._language(ctx)
+        cmpgn_id = tag.campaign_id
+
+        if tag.tag_id is not None:
+            parent = await self._get_entity(cmpgn_id, 'tags', tag.tag_id)
+            em.add_field(name='Parent Tag',
+                         value=parent.link(lang))
+
+        await ctx.send(embed=em)
+        return True
 
     @kanka.command(name='note')
     async def display_note(self, ctx, note_id, alert=True):
@@ -1045,31 +1005,18 @@ class KankaView(commands.Cog):
                 if alert:
                     await ctx.send(MSG_ENTITY_NOT_FOUND)
                 return False
-        note = await self._get_entity(await self._active(ctx), 'notes', note_id)
-        if not await self._check_private(ctx.guild, note):
-            em = discord.Embed(title=note.name,
-                               description=await self._parse_entry(ctx, await self._active(ctx), note),
-                               url='https://kanka.io/{lang}/campaign/'
-                                   '{cmpgn_id}'
-                                   '/notes/'
-                                   '{note_id}'
-                               .format(
-                                   lang=await self._language(ctx),
-                                   cmpgn_id=await self._active(ctx),
-                                   note_id=note_id),
-                               colour=discord.Color.blue())
-            em.set_thumbnail(url=note.image)
-            em.add_field(name='Type', value=note.kind)
-            await ctx.send(embed=em)
-            return True
-        else:
-            if alert:
-                await ctx.send(MSG_ENTITY_NOT_FOUND)
+        note = await self._get_entity(await self._active(ctx), 'notes',
+                                      note_id)
+
+        em = await self._display_entity(ctx, note, alert)
+        if em is None:
             return False
+
+        await ctx.send(embed=em)
+        return True
 
     @kanka.command(name='race')
     async def display_race(self, ctx, race_id, alert=True):
-        # TODO: Attributes and relations
         try:
             race_id = int(race_id)
         except ValueError:
@@ -1079,41 +1026,28 @@ class KankaView(commands.Cog):
                 if alert:
                     await ctx.send(MSG_ENTITY_NOT_FOUND)
                 return False
-        race = await self._get_entity(await self._active(ctx), 'races', race_id)
-        if not await self._check_private(ctx.guild, race):
-            em = discord.Embed(title=race.name,
-                               description=await self._parse_entry(ctx, await self._active(ctx), race),
-                               url='https://kanka.io/{lang}/campaign/'
-                                   '{cmpgn_id}'
-                                   '/races/'
-                                   '{race_id}'
-                               .format(
-                                   lang=await self._language(ctx),
-                                   cmpgn_id=await self._active(ctx),
-                                   race_id=race_id),
-                               colour=discord.Color.blue())
-            em.set_thumbnail(url=race.image)
-            em.add_field(name='Type', value=race.kind)
-            if race.parent_race_id is not None:
-                em.add_field(name='Parent Race',
-                             value='[View Parent Race](https://kanka.io/{lang}/campaign/{cmpgn_id}/'
-                                   'races/{parent_race_id})'
-                             .format(lang=await self._language(ctx),
-                                     cmpgn_id=await self._active(ctx),
-                                     parent_race_id=race.parent_race_id
-                                     )
-                             )
-            # TODO: Display parent name as link instead of id
-            await ctx.send(embed=em)
-            return True
-        else:
-            if alert:
-                await ctx.send(MSG_ENTITY_NOT_FOUND)
+        race = await self._get_entity(await self._active(ctx), 'races',
+                                      race_id)
+
+        em = await self._display_entity(ctx, race, alert)
+        if em is None:
             return False
+
+        lang = await self._language(ctx)
+        cmpgn_id = race.campaign_id
+
+        if race.parent_race_id is not None:
+            parent = await self._get_entity(cmpgn_id, 'races',
+                                            race.parent_race_id)
+            em.add_field(name='Parent Race', value=parent.link(lang))
+
+        await ctx.send(embed=em)
+        return True
 
     @kanka.command(name='search')
     async def display_search(self, ctx, search_id):
         """Display selected Entity."""
+        # TODO: This needs rewriting
 
         if await self.display_character(ctx, search_id, False):
             return
