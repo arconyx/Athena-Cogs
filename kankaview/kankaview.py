@@ -3,7 +3,6 @@ import discord
 import aiohttp
 from markdownify import markdownify as md
 # import json
-import re
 
 DEFAULT_SETTINGS = {'token': None, 'language': 'en', 'hide_private': True}
 REQUEST_PATH = 'https://kanka.io/api/1.0/'
@@ -119,6 +118,8 @@ class Location(Entity):
         super(Location, self).__init__(campaign_id, json_data)
         self.parent_location_id = json_data['parent_location_id']
         self.map = json_data['map']
+        if 'https://kanka.io/images/defaults' in self.map:
+            self.map = None
         self.type = 'locations'
 
 
@@ -469,6 +470,56 @@ class KankaView(commands.Cog):
                     await ctx.send(MSG_ENTITY_NOT_FOUND)
                 return None
 
+    async def _display_entity(self, ctx, entity, alert=True):
+        """Generate basic embed for any entity type"""
+        # TODO: Attributes and relations
+        if await self._check_private(ctx.guild, entity):
+            if alert:
+                await ctx.send(MSG_ENTITY_NOT_FOUND)
+            return None
+
+        lang = await self._language(ctx)
+
+        em = discord.Embed(
+                title=entity.name,
+                description=await self._parse_entry(ctx, entity),
+                url=entity.link(lang=lang, pretty=False),
+                colour=discord.Color.blue())
+        em.set_image(url=entity.image)
+        em.add_field(name='Type', value=entity.kind)
+
+        if entity.files:
+            value = ''
+            for file_name in entity.files:
+                value += '[{name}]({path}), '.format(
+                                                name=file_name,
+                                                path=entity.files[file_name])
+            em.add_field(name='Files', value=value[0:len(value) - 2])
+
+        if entity.tags:
+            tags = []
+            for tag_id in entity.tags:
+                tag = await self._get_entity(entity.campaign_id,
+                                             'tags',
+                                             tag_id)
+                if not await self._check_private(ctx.guild, tag):
+                    tags.append(tag.link(lang))
+            if tags != []:  # Hide tag field when all are private
+                em.add_field(name='Tags', value=', '.join(tags))
+
+        return em
+
+    async def _send(self, ctx, em):
+        # Strip out empty fields for tidiness
+        i = 0
+        while i < len(em.fields):
+            field = em.fields[i]
+            if field.value == 'None':
+                em.remove_field(i)
+            else:
+                i += 1
+        await ctx.send(embed=em)
+
     @commands.group(name='kanka')
     async def kanka(self, ctx):
         """Commands for interacting with Kanka campaigns. Most subcommands will
@@ -519,45 +570,6 @@ class KankaView(commands.Cog):
         await self._load_entity_id_map(id)
         await ctx.send(str(len(ID_MAP)) + ' Entities loaded.')
 
-    async def _display_entity(self, ctx, entity, alert=True):
-        """Generate basic embed for any entity type"""
-        # TODO: Attributes and relations
-        if await self._check_private(ctx.guild, entity):
-            if alert:
-                await ctx.send(MSG_ENTITY_NOT_FOUND)
-            return None
-
-        lang = await self._language(ctx)
-
-        em = discord.Embed(
-                title=entity.name,
-                description=await self._parse_entry(ctx, entity),
-                url=entity.link(lang=lang, pretty=False),
-                colour=discord.Color.blue())
-        em.set_image(url=entity.image)
-        em.add_field(name='Type', value=entity.kind)
-
-        if entity.files:
-            value = ''
-            for file_name in entity.files:
-                value += '[{name}]({path}), '.format(
-                                                name=file_name,
-                                                path=entity.files[file_name])
-            em.add_field(name='Files', value=value[0:len(value) - 2])
-
-        if entity.tags:
-            tags = []
-            for tag_id in entity.tags:
-                tag = await self._get_entity(entity.campaign_id,
-                                             'tags',
-                                             tag_id)
-                if not await self._check_private(ctx.guild, tag):
-                    tags.append(tag.link(lang))
-            if tags != []:  # Hide tag field when all are private
-                em.add_field(name='Tags', value=', '.join(tags))
-
-        return em
-
     @kanka.command(name='character')
     async def display_character(self, ctx, input, alert=True):
         """Display selected character by name or ID."""
@@ -602,7 +614,7 @@ class KankaView(commands.Cog):
             if not await self._check_private(ctx.guild, family):
                 em.add_field(name='Family', value=family.link(lang))
 
-        await ctx.send(embed=em)
+        await self._send(ctx, em)
         return True
 
     @kanka.command(name='location')
@@ -668,7 +680,7 @@ class KankaView(commands.Cog):
                          value=location.link(lang)
                          )
 
-        await ctx.send(embed=em)
+        await self._send(ctx, em)
         return True
 
     @kanka.command(name='family')
@@ -696,7 +708,7 @@ class KankaView(commands.Cog):
                          value=location.link(lang)
                          )
 
-        await ctx.send(embed=em)
+        await self._send(ctx, em)
         return True
 
     @kanka.command(name='calendar')
@@ -721,7 +733,7 @@ class KankaView(commands.Cog):
         em.add_field(name='Length', value=calendar.get_year_length())
         em.add_field(name='Days', value=calendar.get_weekdays())
 
-        await ctx.send(embed=em)
+        await self._send(ctx, em)
         return True
 
     @kanka.command(name='diceroll')
@@ -785,7 +797,7 @@ class KankaView(commands.Cog):
                                               item.location_id)
             em.add_field(name='Location', value=location.link(lang))
 
-        await ctx.send(embed=em)
+        await self._send(ctx, em)
         return True
 
     @kanka.command(name='journal')
@@ -814,7 +826,7 @@ class KankaView(commands.Cog):
                                             journal.character_id)
             em.add_field(name='Author', value=author.link(lang))
 
-        await ctx.send(embed=em)
+        await self._send(ctx, em)
         return True
 
     @kanka.command(name='organisation')
@@ -844,7 +856,7 @@ class KankaView(commands.Cog):
                                               organisation.location_id)
             em.add_field(name='Location', value=location.link(lang))
 
-        await ctx.send(embed=em)
+        await self._send(ctx, em)
         return True
 
     @kanka.command(name='quest')
@@ -883,7 +895,7 @@ class KankaView(commands.Cog):
 
         em.add_field(name='Locations', value=quest.locations)
 
-        await ctx.send(embed=em)
+        await self._send(ctx, em)
         return True
 
     @kanka.command(name='tag')
@@ -908,7 +920,7 @@ class KankaView(commands.Cog):
             em.add_field(name='Parent Tag',
                          value=parent.link(lang))
 
-        await ctx.send(embed=em)
+        await self._send(ctx, em)
         return True
 
     @kanka.command(name='note')
@@ -925,7 +937,7 @@ class KankaView(commands.Cog):
         if em is None:
             return False
 
-        await ctx.send(embed=em)
+        await self._send(ctx, em)
         return True
 
     @kanka.command(name='race')
@@ -949,7 +961,7 @@ class KankaView(commands.Cog):
                                             race.parent_race_id)
             em.add_field(name='Parent Race', value=parent.link(lang))
 
-        await ctx.send(embed=em)
+        await self._send(ctx, em)
         return True
 
     @kanka.command(name='search')
