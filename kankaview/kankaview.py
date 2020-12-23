@@ -423,7 +423,6 @@ class KankaView(commands.Cog):
                     link=parent.link(await self._language(ctx), False)
                     )
 
-        # TODO: Parse out images
         return entry
 
     async def _check_cache(self, campaign_id, entity_type, entity_id):
@@ -611,7 +610,6 @@ class KankaView(commands.Cog):
                 em.add_field(name='Race', value=race.link(lang))
 
         if char.location_id is not None:
-            # TODO: Move link generation into function
             location = await self._get_entity(cmpgn_id, 'locations',
                                               char.location_id, cache=True)
             if not await self._check_private(ctx.guild, location):
@@ -790,7 +788,6 @@ class KankaView(commands.Cog):
     @kanka.command(name='item')
     async def display_item(self, ctx, input, alert=True):
         """Display selected item by name or ID."""
-        # TODO: Attributes and relations
         id = await self._process_display_input(ctx, input, 'item', alert)
         if id is None:
             return False
@@ -820,7 +817,6 @@ class KankaView(commands.Cog):
     @kanka.command(name='journal')
     async def display_journal(self, ctx, input, alert=True):
         """Display selected journal by name or ID."""
-        # TODO: Attributes and relations
         id = await self._process_display_input(ctx, input, 'journal', alert)
         if id is None:
             return False
@@ -944,7 +940,6 @@ class KankaView(commands.Cog):
     @kanka.command(name='note')
     async def display_note(self, ctx, input, alert=True):
         """Display selected note by name or ID."""
-        # TODO: Attributes and relations
         id = await self._process_display_input(ctx, input, 'note', alert)
         if id is None:
             return False
@@ -1087,6 +1082,7 @@ class KankaView(commands.Cog):
         """Return to default settings."""
         # TODO: Add confirmation before deletion for safety
         await self.config.guild(ctx.guild).clear()
+        CACHE.clear()
         await ctx.send('Server specific settings reset to default.')
 
     @kankaset.command(name='forceheaders')
