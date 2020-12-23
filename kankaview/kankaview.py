@@ -2,7 +2,7 @@ from redbot.core import commands, Config, checks
 import discord
 import aiohttp
 import tomd
-import json
+# import json
 import re
 
 DEFAULT_SETTINGS = {'token': None, 'language': 'en', 'hide_private': True}
@@ -457,12 +457,14 @@ class KankaView(commands.Cog):
         if not await self._check_map(campaign_id, entity_type, entity_id):
             return None
         else:
-            return await self._get_entity(campaign_id, entity_type, ID_MAP[entity_id])
+            return await self._get_entity(campaign_id, entity_type,
+                                          ID_MAP[entity_id])
 
     async def _check_map(self, campaign_id, entity_type, entity_id):
         # check ID map to avoid misses
         if len(ID_MAP) == 0 or entity_id not in ID_MAP:
-            # if the ID map has not been loaded, or we are missing this ID, try to reload the IDs
+            # if the ID map has not been loaded, or we are missing this ID,
+            # try to reload the IDs
             await self._load_entity_ids_by_type(campaign_id, entity_type)
             if len(ID_MAP) == 0 or entity_id not in ID_MAP:
                 # if there is still a problem, give up
@@ -470,8 +472,7 @@ class KankaView(commands.Cog):
         # the ID has been loaded
         return True
 
-    async def _search(self, kind, cmpgn_id, query):
-        # TODO: Remove kind requirement
+    async def _search(self, cmpgn_id, query, kind=None):
         async with self.session.get(
                 '{base_url}campaigns/{cmpgn_id}/search/{query}'.format(
                     base_url=REQUEST_PATH,
@@ -480,17 +481,34 @@ class KankaView(commands.Cog):
                 )
         ) as r:
             j = await r.json()
-            for result in j['data']:
-                if result['type'] == kind:
-                    return result['id']
-            # This should only get called if there are no results
-            return 'NoResults'  # WTF does this not return None?
+            if kind:
+                for result in j['data']:
+                    if result['type'] == kind:
+                        return result
+            elif j['data']:
+                return j['data'][0]
+            else:
+                return None
 
     async def _check_private(self, guild, entity):
         if entity.is_private and await self.config.guild(guild).hide_private():
             return True
         else:
             return False
+
+    async def _process_display_input(self, ctx, input, kind, alert=True):
+        try:
+            id = int(input)
+            return id
+        except ValueError:
+            entity = await self._search(await self._active(ctx),
+                                        input, kind=kind)
+            if entity is not None:
+                return entity['id']
+            else:
+                if alert:
+                    await ctx.send(MSG_ENTITY_NOT_FOUND)
+                return None
 
     @commands.group(name='kanka')
     async def kanka(self, ctx):
@@ -585,24 +603,16 @@ class KankaView(commands.Cog):
 
         return em
 
-    # TODO: Can a basic entity embed template be created?
-    # Right now there is a lot of repetition
     @kanka.command(name='character')
-    async def display_character(self, ctx, character_id, alert=True):
-        """Display selected character."""
-        try:
-            character_id = int(character_id)
-        except ValueError:
-            character_id = await self._search('character',
-                                              await self._active(ctx),
-                                              character_id)
-            if character_id == 'NoResults':
-                if alert:
-                    await ctx.send(MSG_ENTITY_NOT_FOUND)
-                return False
+    async def display_character(self, ctx, input, alert=True):
+        """Display selected character by name or ID."""
+        id = await self._process_display_input(ctx, input, 'character', alert)
+        if id is None:
+            return False
 
         char = await self._get_entity(await self._active(ctx), 'characters',
-                                      character_id, True)
+                                      id, related=True)
+
         em = await self._display_entity(ctx, char, alert)
         if em is None:
             return False
@@ -641,21 +651,15 @@ class KankaView(commands.Cog):
         return True
 
     @kanka.command(name='location')
-    async def display_location(self, ctx, location_id, alert=True):
-        """Display selected location."""
-        try:
-            location_id = int(location_id)
-        except ValueError:
-            location_id = await self._search('location',
-                                             await self._active(ctx),
-                                             location_id)
-            if location_id == 'NoResults':
-                if alert:
-                    await ctx.send(MSG_ENTITY_NOT_FOUND)
-                return False
+    async def display_location(self, ctx, input, alert=True):
+        """Display selected location by name or ID."""
+        id = await self._process_display_input(ctx, input, 'location', alert)
+        if id is None:
+            return False
+
         location = await self._get_entity(await self._active(ctx),
                                           'locations',
-                                          location_id,
+                                          id,
                                           True)
 
         em = await self._display_entity(ctx, location, alert)
@@ -685,19 +689,13 @@ class KankaView(commands.Cog):
         return True
 
     @kanka.command(name='event')
-    async def display_event(self, ctx, event_id, alert=True):
-        """Display selected event."""
-        try:
-            event_id = int(event_id)
-        except ValueError:
-            event_id = await self._search('event', await self._active(ctx),
-                                          event_id)
-            if event_id == 'NoResults':
-                if alert:
-                    await ctx.send(MSG_ENTITY_NOT_FOUND)
-                return False
-        event = await self._get_entity(await self._active(ctx), 'events',
-                                       event_id)
+    async def display_event(self, ctx, input, alert=True):
+        """Display selected event by name or ID."""
+        id = await self._process_display_input(ctx, input, 'event', alert)
+        if id is None:
+            return False
+
+        event = await self._get_entity(await self._active(ctx), 'events', id)
 
         em = await self._display_entity(ctx, event, alert)
         if em is None:
@@ -719,20 +717,15 @@ class KankaView(commands.Cog):
         return True
 
     @kanka.command(name='family')
-    async def display_family(self, ctx, family_id, alert=True):
-        """Display selected family."""
+    async def display_family(self, ctx, input, alert=True):
+        """Display selected family by name or ID."""
         # TODO: Add parent display
-        try:
-            family_id = int(family_id)
-        except ValueError:
-            family_id = await self._search('family', await self._active(ctx),
-                                           family_id)
-            if family_id == 'NoResults':
-                if alert:
-                    await ctx.send(MSG_ENTITY_NOT_FOUND)
-                return False
+        id = await self._process_display_input(ctx, input, 'family', alert)
+        if id is None:
+            return False
+
         family = await self._get_entity(await self._active(ctx), 'families',
-                                        family_id)
+                                        id)
 
         em = await self._display_entity(ctx, family, alert)
         if em is None:
@@ -752,26 +745,21 @@ class KankaView(commands.Cog):
         return True
 
     @kanka.command(name='calendar')
-    async def display_calendar(self, ctx, calendar_id, alert=True):
-        """Display selected calendar."""
-        try:
-            calendar_id = int(calendar_id)
-        except ValueError:
-            calendar_id = await self._search('calendar',
-                                             await self._active(ctx),
-                                             calendar_id)
-            if calendar_id == 'NoResults':
-                if alert:
-                    await ctx.send(MSG_ENTITY_NOT_FOUND)
-                return False
+    async def display_calendar(self, ctx, input, alert=True):
+        """Display selected calendar by name or ID."""
+        id = await self._process_display_input(ctx, input, 'calendar', alert)
+        if id is None:
+            return False
+
         calendar = await self._get_entity(await self._active(ctx), 'calendars',
-                                          calendar_id)
+                                          id)
 
         em = await self._display_entity(ctx, calendar, alert)
         if em is None:
             return False
 
-        # TODO: fix these fields. Concatenation error None type. Probably an issue in the class JSON format
+        # TODO: fix these fields. Concatenation error None type.
+        # Probably an issue in the class JSON format
         em.add_field(name='Date',
                      value=calendar.date + ' ' + calendar.suffix)
         em.add_field(name='Months', value=calendar.get_month_names())
@@ -783,19 +771,21 @@ class KankaView(commands.Cog):
 
     @kanka.command(name='diceroll')
     async def display_diceroll(self, ctx, diceroll_id, alert=True):
-        """Display selected dice roll."""
+        """Display selected dice roll. Deprecated."""
         # TODO: Attributes and relations
         # Deprecate? They are annoyingly inconsistant with the rest anyway.
         try:
             diceroll_id = int(diceroll_id)
         except ValueError:
-            diceroll_id = await self._search('diceroll', await self._active(ctx),
+            diceroll_id = await self._search('diceroll',
+                                             await self._active(ctx),
                                              diceroll_id)
             if diceroll_id == 'NoResults':
                 if alert:
                     await ctx.send(MSG_ENTITY_NOT_FOUND)
                 return False
-        diceroll = await self._get_diceroll(await self._active(ctx), diceroll_id)
+        diceroll = await self._get_diceroll(await self._active(ctx),
+                                            diceroll_id)
         if not await self._check_private(ctx.guild, diceroll):
             em = discord.Embed(title=diceroll.name,
                                description=diceroll.parameters,
@@ -814,20 +804,14 @@ class KankaView(commands.Cog):
             await ctx.send(MSG_ENTITY_NOT_FOUND)
 
     @kanka.command(name='item')
-    async def display_item(self, ctx, item_id, alert=True):
-        """Display selected item."""
+    async def display_item(self, ctx, input, alert=True):
+        """Display selected item by name or ID."""
         # TODO: Attributes and relations
-        try:
-            item_id = int(item_id)
-        except ValueError:
-            item_id = await self._search('item', await self._active(ctx),
-                                         item_id)
-            if item_id == 'NoResults':
-                if alert:
-                    await ctx.send(MSG_ENTITY_NOT_FOUND)
-                return False
-        item = await self._get_entity(await self._active(ctx), 'items',
-                                      item_id)
+        id = await self._process_display_input(ctx, input, 'item', alert)
+        if id is None:
+            return False
+
+        item = await self._get_entity(await self._active(ctx), 'items', id)
 
         em = await self._display_entity(ctx, item, alert)
         if em is None:
@@ -850,20 +834,15 @@ class KankaView(commands.Cog):
         return True
 
     @kanka.command(name='journal')
-    async def display_journal(self, ctx, journal_id, alert=True):
-        """Display selected journal."""
+    async def display_journal(self, ctx, input, alert=True):
+        """Display selected journal by name or ID."""
         # TODO: Attributes and relations
-        try:
-            journal_id = int(journal_id)
-        except ValueError:
-            journal_id = await self._search('journal', await self._active(ctx),
-                                            journal_id)
-            if journal_id == 'NoResults':
-                if alert:
-                    await ctx.send(MSG_ENTITY_NOT_FOUND)
-                return False
+        id = await self._process_display_input(ctx, input, 'journal', alert)
+        if id is None:
+            return False
+
         journal = await self._get_entity(await self._active(ctx), 'journals',
-                                         journal_id)
+                                         id)
 
         em = await self._display_entity(ctx, journal, alert)
         if em is None:
@@ -884,21 +863,16 @@ class KankaView(commands.Cog):
         return True
 
     @kanka.command(name='organisation')
-    async def display_organisation(self, ctx, organisation_id, alert=True):
-        """Display selected organisation."""
+    async def display_organisation(self, ctx, input, alert=True):
+        """Display selected organisation by name or ID."""
         # TODO: Get and list members
-        try:
-            organisation_id = int(organisation_id)
-        except ValueError:
-            organisation_id = await self._search('organisation',
-                                                 await self._active(ctx),
-                                                 organisation_id)
-            if organisation_id == 'NoResults':
-                if alert:
-                    await ctx.send(MSG_ENTITY_NOT_FOUND)
-                return False
+        id = await self._process_display_input(ctx, input, 'organisation',
+                                               alert)
+        if id is None:
+            return False
+
         organisation = await self._get_entity(await self._active(ctx),
-                                              'organisations', organisation_id)
+                                              'organisations', id)
 
         em = await self._display_entity(ctx, organisation, alert)
         if em is None:
@@ -919,20 +893,15 @@ class KankaView(commands.Cog):
         return True
 
     @kanka.command(name='quest')
-    async def display_quest(self, ctx, quest_id, alert=True):
-        """Display selected quest."""
+    async def display_quest(self, ctx, input, alert=True):
+        """Display selected quest by name or ID."""
         # TODO: Get and list members
-        try:
-            quest_id = int(quest_id)
-        except ValueError:
-            quest_id = await self._search('quest', await self._active(ctx),
-                                          quest_id)
-            if quest_id == 'NoResults':
-                if alert:
-                    await ctx.send(MSG_ENTITY_NOT_FOUND)
-                return False
-        quest = await self._get_entity(await self._active(ctx), 'quests',
-                                       quest_id)
+        id = await self._process_display_input(ctx, input, 'quest',
+                                               alert)
+        if id is None:
+            return False
+
+        quest = await self._get_entity(await self._active(ctx), 'quests', id)
 
         em = await self._display_entity(ctx, quest, alert)
         if em is None:
@@ -963,19 +932,14 @@ class KankaView(commands.Cog):
         return True
 
     @kanka.command(name='tag')
-    async def display_tag(self, ctx, tag_id, alert=True):
-        """Display selected tag."""
+    async def display_tag(self, ctx, input, alert=True):
+        """Display selected tag by name or ID."""
         # TODO: Get and list children and subcategories
-        try:
-            tag_id = int(tag_id)
-        except ValueError:
-            tag_id = await self._search('tag', await self._active(ctx),
-                                        tag_id)
-            if tag_id == 'NoResults':
-                if alert:
-                    await ctx.send(MSG_ENTITY_NOT_FOUND)
-                return False
-        tag = await self._get_entity(await self._active(ctx), 'tags', tag_id)
+        id = await self._process_display_input(ctx, input, 'tag', alert)
+        if id is None:
+            return False
+
+        tag = await self._get_entity(await self._active(ctx), 'tags', id)
 
         em = await self._display_entity(ctx, tag, alert)
         if em is None:
@@ -993,20 +957,14 @@ class KankaView(commands.Cog):
         return True
 
     @kanka.command(name='note')
-    async def display_note(self, ctx, note_id, alert=True):
-        """Display selected note."""
+    async def display_note(self, ctx, input, alert=True):
+        """Display selected note by name or ID."""
         # TODO: Attributes and relations
-        try:
-            note_id = int(note_id)
-        except ValueError:
-            note_id = await self._search('note', await self._active(ctx),
-                                         note_id)
-            if note_id == 'NoResults':
-                if alert:
-                    await ctx.send(MSG_ENTITY_NOT_FOUND)
-                return False
-        note = await self._get_entity(await self._active(ctx), 'notes',
-                                      note_id)
+        id = await self._process_display_input(ctx, input, 'note', alert)
+        if id is None:
+            return False
+
+        note = await self._get_entity(await self._active(ctx), 'notes', id)
 
         em = await self._display_entity(ctx, note, alert)
         if em is None:
@@ -1016,18 +974,13 @@ class KankaView(commands.Cog):
         return True
 
     @kanka.command(name='race')
-    async def display_race(self, ctx, race_id, alert=True):
-        try:
-            race_id = int(race_id)
-        except ValueError:
-            race_id = await self._search('race', await self._active(ctx),
-                                         race_id)
-            if race_id == 'NoResults':
-                if alert:
-                    await ctx.send(MSG_ENTITY_NOT_FOUND)
-                return False
-        race = await self._get_entity(await self._active(ctx), 'races',
-                                      race_id)
+    async def display_race(self, ctx, input, alert=True):
+        """Display selected race by name or ID."""
+        id = await self._process_display_input(ctx, input, 'race', alert)
+        if id is None:
+            return False
+
+        race = await self._get_entity(await self._active(ctx), 'races', id)
 
         em = await self._display_entity(ctx, race, alert)
         if em is None:
@@ -1045,36 +998,58 @@ class KankaView(commands.Cog):
         return True
 
     @kanka.command(name='search')
-    async def display_search(self, ctx, search_id):
+    async def display_search(self, ctx, query):
         """Display selected Entity."""
         # TODO: This needs rewriting
 
-        if await self.display_character(ctx, search_id, False):
+        entity = await self._search(await self._active(ctx), query)
+
+        if entity is None:
+            await ctx.send(MSG_ENTITY_NOT_FOUND)
+            return False
+
+        type = entity['type']
+        id = entity['id']
+
+        if type == 'character':
+            await self.display_character(ctx, id)
             return
-        elif await self.display_location(ctx, search_id, False):
+        elif type == 'location':
+            await self.display_location(ctx, id)
             return
-        elif await self.display_item(ctx, search_id, False):
+        elif type == 'organisation':
+            await self.display_organisation(ctx, id)
             return
-        elif await self.display_organisation(ctx, search_id, False):
+        elif type == 'family':
+            await self.display_family(ctx, id)
             return
-        elif await self.display_quest(ctx, search_id, False):
+        elif type == 'calendar':
+            await self.display_calendar(ctx, id)
             return
-        elif await self.display_family(ctx, search_id, False):
+        elif type == 'race':
+            await self.display_race(ctx, id)
             return
-        elif await self.display_note(ctx, search_id, False):
+        elif type == 'quest':
+            await self.display_quest(ctx, id)
             return
-        elif await self.display_event(ctx, search_id, False):
+        elif type == 'journal':
+            await self.display_journal(ctx, id)
             return
-        elif await self.display_race(ctx, search_id, False):
+        elif type == 'item':
+            await self.display_item(ctx, id)
             return
-        elif await self.display_calendar(ctx, search_id, False):
+        elif type == 'event':
+            await self.display_event(ctx, id)
             return
-        elif await self.display_tag(ctx, search_id, False):
+        elif type == 'note':
+            await self.display_note(ctx, id)
             return
-        elif await self.display_journal(ctx, search_id, False):
+        elif type == 'tag':
+            await self.display_tag(ctx, id)
             return
         else:
             await ctx.send(MSG_ENTITY_NOT_FOUND)
+            return
 
     @kanka.command(name='refresh')
     async def load_id_map(self, ctx):
