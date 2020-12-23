@@ -2,13 +2,12 @@ from redbot.core import commands, Config, checks
 import discord
 import aiohttp
 from markdownify import markdownify as md
-# import json
 
 DEFAULT_SETTINGS = {'token': None, 'language': 'en', 'hide_private': True}
 REQUEST_PATH = 'https://kanka.io/api/1.0/'
 STORAGE_PATH = 'https://kanka-user-assets.s3.eu-central-1.amazonaws.com/'
 MSG_ENTITY_NOT_FOUND = 'Entity not found.'
-ID_MAP = {}
+CACHE = {}
 
 
 # TODO: OAuth user tokens?
@@ -295,10 +294,18 @@ class KankaView(commands.Cog):
             return Campaign(j['data'])
 
     async def _get_entity(self, campaign_id, entity_type, entity_id,
-                          related=False):
+                          related=False, cache=False):
         # Move privacy checking into here?
-        if related:
+        if related and cache:
+            raise ValueError('The related and cache parameters cannot both be'
+                             ' true as the cache lacks this information.')
+        elif related:
             entity_id = str(entity_id) + '?related=1'
+        elif cache:
+            cached_entity = await self._check_cache(campaign_id, entity_type,
+                                                    entity_id)
+            if cached_entity is not None:
+                return cached_entity
 
         async with self.session.get('{base_url}campaigns/'
                                     '{campaign_id}'
@@ -351,24 +358,28 @@ class KankaView(commands.Cog):
             j = await r.json()
             return DiceRoll(campaign_id, j['data'])
 
-    async def _load_entity_id_map(self, campaign_id):
-        await self._load_entity_ids_by_type(campaign_id, 'characters')
-        await self._load_entity_ids_by_type(campaign_id, 'locations')
-        await self._load_entity_ids_by_type(campaign_id, 'items')
-        await self._load_entity_ids_by_type(campaign_id, 'organisations')
-        await self._load_entity_ids_by_type(campaign_id, 'families')
-        await self._load_entity_ids_by_type(campaign_id, 'quests')
-        await self._load_entity_ids_by_type(campaign_id, 'notes')
-        await self._load_entity_ids_by_type(campaign_id, 'events')
-        await self._load_entity_ids_by_type(campaign_id, 'calendars')
-        await self._load_entity_ids_by_type(campaign_id, 'journals')
-        await self._load_entity_ids_by_type(campaign_id, 'tags')
+    async def _cache_entities(self, campaign_id):
+        await self._cache_entity_by_type(campaign_id, 'characters')
+        await self._cache_entity_by_type(campaign_id, 'locations')
+        await self._cache_entity_by_type(campaign_id, 'items')
+        await self._cache_entity_by_type(campaign_id, 'organisations')
+        await self._cache_entity_by_type(campaign_id, 'families')
+        await self._cache_entity_by_type(campaign_id, 'quests')
+        await self._cache_entity_by_type(campaign_id, 'notes')
+        await self._cache_entity_by_type(campaign_id, 'events')
+        await self._cache_entity_by_type(campaign_id, 'calendars')
+        await self._cache_entity_by_type(campaign_id, 'journals')
+        await self._cache_entity_by_type(campaign_id, 'tags')
 
-    async def _load_entity_ids_by_type(self, campaign_id, entity_type):
+    async def _cache_entity_by_type(self, campaign_id, entity_type):
         # API will only load 15-100 entities at a time.
         # Increment the page and load more if needed
         done = False
         page = 1
+
+        if entity_type not in CACHE:
+            CACHE[entity_type] = {}
+
         while not done:
             async with self.session.get('{base_url}campaigns/'
                                         '{campaign_id}'
@@ -386,7 +397,8 @@ class KankaView(commands.Cog):
                 else:
                     for i in range(len(j['data'])):
                         entity = Entity(campaign_id, j['data'][i])
-                        ID_MAP[entity.entity_id] = entity.id
+                        entity.type = entity_type
+                        CACHE[entity_type][entity.id] = entity
                     page += 1
 
     async def _parse_entry(self, ctx, parent):
@@ -412,25 +424,17 @@ class KankaView(commands.Cog):
         # TODO: Parse out images
         return entry
 
-    async def _get_mention(self, campaign_id, entity_type, entity_id):
-        # check ID map to avoid misses
-        if not await self._check_map(campaign_id, entity_type, entity_id):
-            return None
-        else:
-            return await self._get_entity(campaign_id, entity_type,
-                                          ID_MAP[entity_id])
-
-    async def _check_map(self, campaign_id, entity_type, entity_id):
-        # check ID map to avoid misses
-        if len(ID_MAP) == 0 or entity_id not in ID_MAP:
-            # if the ID map has not been loaded, or we are missing this ID,
+    async def _check_cache(self, campaign_id, entity_type, entity_id):
+        # check cache for ID of entity.
+        if len(CACHE) == 0 or entity_id not in CACHE[entity_type]:
+            # if the cache has not been loaded, or we are missing this ID,
             # try to reload the IDs
-            await self._load_entity_ids_by_type(campaign_id, entity_type)
-            if len(ID_MAP) == 0 or entity_id not in ID_MAP:
+            await self._cache_entity_by_type(campaign_id, entity_type)
+            if len(CACHE) == 0 or entity_id not in CACHE[entity_type]:
                 # if there is still a problem, give up
-                return False
+                return None
         # the ID has been loaded
-        return True
+        return CACHE[entity_type][entity_id]
 
     async def _search(self, cmpgn_id, query, kind=None):
         async with self.session.get(
@@ -501,7 +505,7 @@ class KankaView(commands.Cog):
             for tag_id in entity.tags:
                 tag = await self._get_entity(entity.campaign_id,
                                              'tags',
-                                             tag_id)
+                                             tag_id, cache=True)
                 if not await self._check_private(ctx.guild, tag):
                     tags.append(tag.link(lang))
             if tags != []:  # Hide tag field when all are private
@@ -566,9 +570,12 @@ class KankaView(commands.Cog):
         await ctx.send('Active campaign set.', embed=em)
 
         await ctx.send('Loading Entity info...')
-        ID_MAP.clear()
-        await self._load_entity_id_map(id)
-        await ctx.send(str(len(ID_MAP)) + ' Entities loaded.')
+        CACHE.clear()
+        await self._cache_entities(id)
+        length = 0
+        for value in CACHE.values():
+            length += len(value)
+        await ctx.send(str(length) + ' Entities loaded.')
 
     @kanka.command(name='character')
     async def display_character(self, ctx, input, alert=True):
@@ -604,13 +611,13 @@ class KankaView(commands.Cog):
         if char.location_id is not None:
             # TODO: Move link generation into function
             location = await self._get_entity(cmpgn_id, 'locations',
-                                              char.location_id)
+                                              char.location_id, cache=True)
             if not await self._check_private(ctx.guild, location):
                 em.add_field(name='Location', value=location.link(lang))
 
         if char.family_id:
             family = await self._get_entity(cmpgn_id, 'families',
-                                            char.family_id)
+                                            char.family_id, cache=True)
             if not await self._check_private(ctx.guild, family):
                 em.add_field(name='Family', value=family.link(lang))
 
@@ -967,7 +974,6 @@ class KankaView(commands.Cog):
     @kanka.command(name='search')
     async def display_search(self, ctx, query):
         """Display selected Entity."""
-        # TODO: This needs rewriting
 
         entity = await self._search(await self._active(ctx), query)
 
@@ -1019,11 +1025,14 @@ class KankaView(commands.Cog):
             return
 
     @kanka.command(name='refresh')
-    async def load_id_map(self, ctx):
-        """Reload IDs for new Entities. May help reduce loading times."""
+    async def load_cache(self, ctx):
+        """Cache basic entity information. May help reduce loading times."""
         await ctx.send('Loading Entity info...')
-        await self._load_entity_id_map(await self._active(ctx))
-        await ctx.send(str(len(ID_MAP)) + ' Entities loaded.')
+        await self._cache_entities(await self._active(ctx))
+        length = 0
+        for value in CACHE.values():
+            length += len(value)
+        await ctx.send(str(length) + ' Entities loaded.')
 
     @commands.group(name='kankaset')
     @checks.admin_or_permissions(manage_guild=True)
