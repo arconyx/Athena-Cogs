@@ -134,6 +134,7 @@ class Family(Entity):
     def __init__(self, campaign_id, json_data):
         super(Family, self).__init__(campaign_id, json_data)
         self.location_id = json_data['location_id']
+        self.parent_family_id = json_data['family_id']
         self.type = 'families'
 
 
@@ -370,6 +371,7 @@ class KankaView(commands.Cog):
         await self._cache_entity_by_type(campaign_id, 'calendars')
         await self._cache_entity_by_type(campaign_id, 'journals')
         await self._cache_entity_by_type(campaign_id, 'tags')
+        await self._cache_entity_by_type(campaign_id, 'races')
 
     async def _cache_entity_by_type(self, campaign_id, entity_type):
         # API will only load 15-100 entities at a time.
@@ -426,11 +428,11 @@ class KankaView(commands.Cog):
 
     async def _check_cache(self, campaign_id, entity_type, entity_id):
         # check cache for ID of entity.
-        if len(CACHE) == 0 or entity_id not in CACHE[entity_type]:
+        if entity_type not in CACHE or entity_id not in CACHE[entity_type]:
             # if the cache has not been loaded, or we are missing this ID,
             # try to reload the IDs
             await self._cache_entity_by_type(campaign_id, entity_type)
-            if len(CACHE) == 0 or entity_id not in CACHE[entity_type]:
+            if entity_type not in CACHE or entity_id not in CACHE[entity_type]:
                 # if there is still a problem, give up
                 return None
         # the ID has been loaded
@@ -654,7 +656,8 @@ class KankaView(commands.Cog):
         if location.parent_location_id is not None:
             parent = await self._get_entity(cmpgn_id,
                                             'locations',
-                                            location.parent_location_id)
+                                            location.parent_location_id,
+                                            cache=True)
             em.add_field(name='Parent Location',
                          value=parent.link(lang)
                          )
@@ -682,7 +685,7 @@ class KankaView(commands.Cog):
 
         if event.location_id is not None:
             location = await self._get_entity(cmpgn_id, 'locations',
-                                              event.location_id)
+                                              event.location_id, cache=True)
             em.add_field(name='Location',
                          value=location.link(lang)
                          )
@@ -693,7 +696,6 @@ class KankaView(commands.Cog):
     @kanka.command(name='family')
     async def display_family(self, ctx, input, alert=True):
         """Display selected family by name or ID."""
-        # TODO: Add parent display
         id = await self._process_display_input(ctx, input, 'family', alert)
         if id is None:
             return False
@@ -710,9 +712,17 @@ class KankaView(commands.Cog):
 
         if family.location_id is not None:
             location = await self._get_entity(cmpgn_id, 'locations',
-                                              family.location_id)
+                                              family.location_id, cache=True)
             em.add_field(name='Location',
                          value=location.link(lang)
+                         )
+
+        if family.parent_family_id is not None:
+            parent = await self._get_entity(cmpgn_id, 'families',
+                                            family.parent_family_id,
+                                            cache=True)
+            em.add_field(name='Parent Family',
+                         value=parent.link(lang)
                          )
 
         await self._send(ctx, em)
@@ -796,12 +806,12 @@ class KankaView(commands.Cog):
 
         if item.character_id is not None:
             owner = await self._get_entity(cmpgn_id, 'characters',
-                                           item.character_id)
+                                           item.character_id, cache=True)
             em.add_field(name='Owner', value=owner.link(lang))
 
         if item.location_id is not None:
             location = await self._get_entity(cmpgn_id, 'locations',
-                                              item.location_id)
+                                              item.location_id, cache=True)
             em.add_field(name='Location', value=location.link(lang))
 
         await self._send(ctx, em)
@@ -830,7 +840,7 @@ class KankaView(commands.Cog):
 
         if journal.character_id is not None:
             author = await self._get_entity(cmpgn_id, 'journals',
-                                            journal.character_id)
+                                            journal.character_id, cache=True)
             em.add_field(name='Author', value=author.link(lang))
 
         await self._send(ctx, em)
@@ -860,7 +870,8 @@ class KankaView(commands.Cog):
 
         if organisation.location_id is not None:
             location = await self._get_entity(cmpgn_id, 'locations',
-                                              organisation.location_id)
+                                              organisation.location_id,
+                                              cache=True)
             em.add_field(name='Location', value=location.link(lang))
 
         await self._send(ctx, em)
@@ -886,16 +897,15 @@ class KankaView(commands.Cog):
 
         if quest.character_id is not None:
             instigator = await self._get_entity(cmpgn_id, 'characters',
-                                                quest.character_id)
+                                                quest.character_id, cache=True)
             em.add_field(name='Instigator', value=instigator.link(lang))
 
         em.add_field(name='Completed', value=quest.is_completed)
         em.add_field(name='Characters', value=quest.characters)
 
         if quest.parent_quest_id is not None:
-            parent = await self._get_entity(cmpgn_id,
-                                            'quests',
-                                            quest.parent_quest_id)
+            parent = await self._get_entity(cmpgn_id, 'quests',
+                                            quest.parent_quest_id, cache=True)
             em.add_field(name='Parent Quest',
                          value=parent.link(lang)
                          )
@@ -923,7 +933,8 @@ class KankaView(commands.Cog):
         cmpgn_id = tag.campaign_id
 
         if tag.tag_id is not None:
-            parent = await self._get_entity(cmpgn_id, 'tags', tag.tag_id)
+            parent = await self._get_entity(cmpgn_id, 'tags', tag.tag_id,
+                                            cache=True)
             em.add_field(name='Parent Tag',
                          value=parent.link(lang))
 
@@ -965,7 +976,7 @@ class KankaView(commands.Cog):
 
         if race.parent_race_id is not None:
             parent = await self._get_entity(cmpgn_id, 'races',
-                                            race.parent_race_id)
+                                            race.parent_race_id, cache=True)
             em.add_field(name='Parent Race', value=parent.link(lang))
 
         await self._send(ctx, em)
