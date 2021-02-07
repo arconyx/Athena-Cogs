@@ -360,6 +360,7 @@ class KankaView(commands.Cog):
             return DiceRoll(campaign_id, j['data'])
 
     async def _cache_entities(self, campaign_id):
+        # TODO: LastSync, expiry, update
         await self._cache_entity_by_type(campaign_id, 'characters')
         await self._cache_entity_by_type(campaign_id, 'locations')
         await self._cache_entity_by_type(campaign_id, 'items')
