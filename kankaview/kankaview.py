@@ -225,7 +225,7 @@ class Tag(Entity):
 class Note(Entity):
     def __init__(self, campaign_id, json_data):
         super(Note, self).__init__(campaign_id, json_data)
-        self.is_pinned = json_data['is_pinned']
+        # self.is_pinned = json_data['is_pinned']
         self.type = 'notes'
 
 
@@ -234,6 +234,14 @@ class Race(Entity):
         super(Race, self).__init__(campaign_id, json_data)
         self.parent_race_id = json_data['race_id']
         self.type = 'races'
+
+
+class Ability(Entity):
+    def __init__(self, campaign_id, json_data):
+        super(Ability, self).__init__(campaign_id, json_data)
+        self.parent_ability_id = json_data['ability_id']
+        self.charges = json_data['charges']
+        self.type = 'abilities'
 
 
 class KankaView(commands.Cog):
@@ -342,6 +350,8 @@ class KankaView(commands.Cog):
                 return Journal(campaign_id, j['data'])
             elif entity_type == 'races':
                 return Race(campaign_id, j['data'])
+            elif entity_type == 'abilities':
+                return Ability(campaign_id, j['data'])
             else:
                 return None
 
@@ -373,6 +383,7 @@ class KankaView(commands.Cog):
         await self._cache_entity_by_type(campaign_id, 'journals')
         await self._cache_entity_by_type(campaign_id, 'tags')
         await self._cache_entity_by_type(campaign_id, 'races')
+        await self._cache_entity_by_type(campaign_id, 'abilities')
 
     async def _cache_entity_by_type(self, campaign_id, entity_type):
         # API will only load 15-100 entities at a time.
@@ -978,6 +989,35 @@ class KankaView(commands.Cog):
         await self._send(ctx, em)
         return True
 
+    @kanka.command(name='ability')
+    async def display_ability(self, ctx, input, alert=True):
+        """Display selected ability by name or ID."""
+        id = await self._process_display_input(ctx, input, 'ability', alert)
+        if id is None:
+            return False
+
+        ability = await self._get_entity(await self._active(ctx),
+                                         'abilities', id)
+
+        em = await self._display_entity(ctx, ability, alert)
+        if em is None:
+            return False
+
+        lang = await self._language(ctx)
+        cmpgn_id = ability.campaign_id
+
+        if ability.parent_ability_id is not None:
+            parent = await self._get_entity(cmpgn_id, 'abilities',
+                                            ability.parent_ability_id,
+                                            cache=True)
+            em.add_field(name='Parent Ability', value=parent.link(lang))
+
+        if ability.charges is not None:
+            em.add_field(name='Charges', value=ability.charges)
+
+        await self._send(ctx, em)
+        return True
+
     @kanka.command(name='search')
     async def display_search(self, ctx, query):
         """Display selected Entity."""
@@ -1026,6 +1066,9 @@ class KankaView(commands.Cog):
             return
         elif type == 'tag':
             await self.display_tag(ctx, id)
+            return
+        elif type == 'ability':
+            await self.display_ability(ctx, id)
             return
         else:
             await ctx.send(MSG_ENTITY_NOT_FOUND)
