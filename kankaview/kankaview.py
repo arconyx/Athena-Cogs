@@ -29,6 +29,13 @@ class Campaign:
         self.members = json_data['members']
         self.type = 'campaign'
 
+    def link(self, lang='en', pretty=True):  # TODO: Improve language support?
+        link = ('https://kanka.io/{lang}/campaign/'
+                '{cmpgn_id}/campaign').format(lang=lang, cmpgn_id=self.id)
+        if pretty:
+            link = '[{name}]({link})'.format(name=self.name, link=link)
+        return link
+
 
 class DiceRoll:
     # Dice are annoyingly inconsistant and so get a class without Entity
@@ -432,7 +439,7 @@ class KankaView(commands.Cog):
         # Entry length limit due to Discord embed rules
         if len(entry) > 1900:
             entry = entry[:1900] + '...' + '[ Read more.]({link})'.format(
-                    link=parent.link(await self._language(ctx), False)
+                    link=parent.link(await self._language(ctx), pretty=False)
                     )
 
         return entry
@@ -551,6 +558,7 @@ class KankaView(commands.Cog):
                                len(campaigns)),
                            colour=discord.Color.blue())
         # This only works with up to 25 campaigns
+        # Change to use link class method?
         for campaign in campaigns:
             em.add_field(name=campaign.name,
                          value='https://kanka.io/{lang}/campaign/{id}'.format(
