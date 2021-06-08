@@ -17,7 +17,11 @@ class Campaign:
         self.id = json_data.get('id')
         self.name = json_data.get('name')
         self.locale = json_data.get('locale')
-        self.entry = md(json_data.get('entry'), strip=['img'])
+        
+        missing_entry_message = "<p>This campaign doesn't have a description yet.</p>"
+        raw_entry = json_data.get('entry') if json_data.get('entry') is not None else missing_entry_message
+        self.entry = md(raw_entry, strip=['img'])
+
         self.image = f"{STORAGE_PATH}{json_data.get('image')}" if json_data.get('image') is not None else ""
         self.visibility = json_data.get('visibility')
         self.created_at = json_data.get('created_at')
@@ -57,8 +61,9 @@ class Entity:
         self.created_by = json_data.get('created_by')
         self.entity_id = json_data.get('entity_id')
 
-        missing_entry_message = "<p>This entity doesn't have a description yet.</p>)"
-        self.entry = md(json_data.get('entry_parsed', missing_entry_message), strip=['img'])
+        missing_entry_message = "<p>This entity doesn't have a description yet.</p>"
+        raw_entry = json_data.get('entry_parsed') if json_data.get('entry_parsed') is not None else missing_entry_message
+        self.entry = md(raw_entry, strip=['img'])
 
         self.id = json_data.get('id')
         self.image = f"{STORAGE_PATH}{json_data.get('image')}" if json_data.get('image') is not None else ""
@@ -78,7 +83,7 @@ class Entity:
             self.files = None
 
     def link(self, lang='en', pretty=True):  # TODO: Improve language support?
-        link = f'https://kanka.io/{lang}/campaign/{self.campaign_id}/{self.kind}/{self.id}'
+        link = f'https://kanka.io/{lang}/campaign/{self.campaign_id}/{self.type}/{self.id}'
         return f'[{self.name}]({link})' if pretty else link
 
 
@@ -825,8 +830,15 @@ class KankaView(commands.Cog):
         lang = await self._language(ctx)
         cmpgn_id = organisation.campaign_id
 
-        member_links = "\n".join(Character(cmpgn_id, member).link() for member in organisation.members)
-        em.add_field(name='Members', value=member_links)
+        if organisation.members:
+            members = []
+            for m in organisation.members:
+                member = await self._get_entity(cmpgn_id, 'characters', m.get('character_id'), cache=True)
+                if not await self._check_private(ctx.guild, member):
+                    members.append(member.link(lang))
+        if members: # Hide field when all members are private
+            em.add_field(name='Members', value=', '.join(members))
+            # The members information in organisation.members includes an is_private field - consult that?
 
         if organisation.location_id is not None:
             location = await self._get_entity(cmpgn_id, 'locations',
