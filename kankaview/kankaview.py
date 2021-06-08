@@ -9,121 +9,102 @@ STORAGE_PATH = 'https://kanka-user-assets.s3.eu-central-1.amazonaws.com/'
 MSG_ENTITY_NOT_FOUND = 'Entity not found.'
 CACHE = {}
 
-
 # TODO: OAuth user tokens?
 
 
 class Campaign:
     def __init__(self, json_data):
-        self.id = json_data['id']
-        self.name = json_data['name']
-        self.locale = json_data['locale']
-        self.entry = md(json_data['entry'], strip=['img'])
-        if json_data['image']:
-            self.image = STORAGE_PATH + json_data['image']
-        else:
-            self.image = ''
-        self.visibility = json_data['visibility']
-        self.created_at = json_data['created_at']
-        self.updated_at = json_data['updated_at']
-        self.members = json_data['members']
+        self.id = json_data.get('id')
+        self.name = json_data.get('name')
+        self.locale = json_data.get('locale')
+        
+        missing_entry_message = "<p>This campaign doesn't have a description yet.</p>"
+        raw_entry = json_data.get('entry') if json_data.get('entry') is not None else missing_entry_message
+        self.entry = md(raw_entry, strip=['img'])
+
+        self.image = f"{STORAGE_PATH}{json_data.get('image')}" if json_data.get('image') is not None else ""
+        self.visibility = json_data.get('visibility')
+        self.created_at = json_data.get('created_at')
+        self.updated_at = json_data.get('updated_at')
+        self.members = json_data.get('members')
         self.type = 'campaign'
 
     def link(self, lang='en', pretty=True):  # TODO: Improve language support?
-        link = ('https://kanka.io/{lang}/campaign/'
-                '{cmpgn_id}/campaign').format(lang=lang, cmpgn_id=self.id)
-        if pretty:
-            link = '[{name}]({link})'.format(name=self.name, link=link)
-        return link
+        link = f'https://kanka.io/{lang}/campaign/{self.id}/campaign'
+        return f'[{self.name}]({link})' if pretty else link
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({', '.join(f'{key}={value!r}' for key, value in self.__dict__.items())})"
 
 
 class DiceRoll:
     # Dice are annoyingly inconsistant and so get a class without Entity
     def __init__(self, campaign_id, json_data):
         self.campaign_id = campaign_id
-        self.id = json_data['id']
-        self.character_id = json_data['character_id']
-        self.name = json_data['name']
-        self.slug = json_data['slug']
-        self.system = json_data['system']
-        self.parameters = json_data['parameters']
-        self.is_private = json_data['private']
-        self.created = {'at': json_data['created_at']}
-        self.updated = {'at': json_data['created_at']}
-        if json_data['image']:
-            self.image = STORAGE_PATH + json_data['image']
-        else:
-            self.image = ''
-        self.tags = json_data['tags']
+        self.id = json_data.get('id')
+        self.character_id = json_data.get('character_id')
+        self.name = json_data.get('name')
+        self.slug = json_data.get('slug')
+        self.system = json_data.get('system')
+        self.parameters = json_data.get('parameters')
+        self.is_private = json_data.get('private')
+        self.created_at = json_data.get('created_at')
+        self.updated_at = json_data.get('updated_at')
+        self.image = f"{STORAGE_PATH}{json_data.get('image')}" if json_data.get('image') is not None else ""
+        self.tags = json_data.get('tags')
 
 
 class Entity:
     def __init__(self, campaign_id, json_data):
         self.campaign_id = campaign_id
-        self.created = {'at': json_data['created_at'],
-                        'by': json_data['created_by']}
-        self.entity_id = json_data['entity_id']
+        self.created_at = json_data.get('created_at')
+        self.created_by = json_data.get('created_by')
+        self.entity_id = json_data.get('entity_id')
 
-        if json_data['entry_parsed'] is None:
-            json_data['entry_parsed'] = ('<p>This entity doesn\'t '
-                                         'have an description yet.</p>')
-        self.entry = md(json_data['entry_parsed'], strip=['img'])
+        missing_entry_message = "<p>This entity doesn't have a description yet.</p>"
+        raw_entry = json_data.get('entry_parsed') if json_data.get('entry_parsed') is not None else missing_entry_message
+        self.entry = md(raw_entry, strip=['img'])
 
-        self.id = json_data['id']
-
-        if json_data['image']:
-            self.image = STORAGE_PATH + json_data['image']
-        else:
-            self.image = ''
-
-        self.is_private = json_data['is_private']
-        self.name = json_data['name']
-        self.tags = json_data['tags']
-        self.updated = {'at': json_data['updated_at'],
-                        'by': json_data['updated_by']}
-        self.kind = json_data['type']
+        self.id = json_data.get('id')
+        self.image = f"{STORAGE_PATH}{json_data.get('image')}" if json_data.get('image') is not None else ""
+        self.is_private = json_data.get('is_private')
+        self.name = json_data.get('name')
+        self.tags = json_data.get('tags')
+        self.created_at = json_data.get('created_at')
+        self.updated_at = json_data.get('updated_at')
+        self.kind = json_data.get('type')
 
         self.files = {}
         if 'entity_files' in json_data:
-            for i in range(len(json_data['entity_files'])):
-                # TODO: include private files if hide_private is false
-                if json_data['entity_files'][i]['visibility'] == 'all':
-                    self.files[json_data['entity_files'][i]['name']
-                               ] = json_data['entity_files'][i]['path']
+            for entity in json_data.get('entity_files'):
+                if entity.get('visibility') == 'all':
+                    self.files[entity.get('name')] = entity.get('path')
         else:
             self.files = None
 
     def link(self, lang='en', pretty=True):  # TODO: Improve language support?
-        link = ('https://kanka.io/{lang}/campaign/'
-                '{cmpgn_id}/{type}/{id}').format(
-                             lang=lang,
-                             cmpgn_id=self.campaign_id,
-                             type=self.type,
-                             id=self.id
-                             )
-        if pretty:
-            link = '[{name}]({link})'.format(name=self.name, link=link)
-        return link
+        link = f'https://kanka.io/{lang}/campaign/{self.campaign_id}/{self.type}/{self.id}'
+        return f'[{self.name}]({link})' if pretty else link
 
 
 class Character(Entity):
     def __init__(self, campaign_id, json_data):
-        super(Character, self).__init__(campaign_id, json_data)
-        self.age = json_data['age']
-        self.family_id = json_data['family_id']
-        self.is_dead = json_data['is_dead']
-        self.location_id = json_data['location_id']
-        self.race_id = json_data['race_id']
-        self.sex = json_data['sex']
-        self.title = json_data['title']
+        Entity.__init__(self, campaign_id, json_data)
+        self.age = json_data.get('age')
+        self.family_id = json_data.get('family_id')
+        self.is_dead = json_data.get('is_dead')
+        self.location_id = json_data.get('location_id')
+        self.race_id = json_data.get('race_id')
+        self.sex = json_data.get('sex')
+        self.title = json_data.get('title')
         self.type = 'characters'
 
 
 class Location(Entity):
     def __init__(self, campaign_id, json_data):
-        super(Location, self).__init__(campaign_id, json_data)
-        self.parent_location_id = json_data['parent_location_id']
-        self.map = json_data['map']
+        Entity.__init__(self, campaign_id, json_data)
+        self.parent_location_id = json_data.get('parent_location_id')
+        self.map = json_data.get('map')
         if 'https://kanka.io/images/defaults' in self.map:
             self.map = None
         self.type = 'locations'
@@ -131,39 +112,39 @@ class Location(Entity):
 
 class Event(Entity):
     def __init__(self, campaign_id, json_data):
-        super(Event, self).__init__(campaign_id, json_data)
-        self.date = json_data['date']
-        self.location_id = json_data['location_id']
+        Entity.__init__(self, campaign_id, json_data)
+        self.date = json_data.get('date')
+        self.location_id = json_data.get('location_id')
         self.type = 'events'
 
 
 class Family(Entity):
     def __init__(self, campaign_id, json_data):
-        super(Family, self).__init__(campaign_id, json_data)
-        self.location_id = json_data['location_id']
-        self.parent_family_id = json_data['family_id']
+        Entity.__init__(self, campaign_id, json_data)
+        self.location_id = json_data.get('location_id')
+        self.parent_family_id = json_data.get('family_id')
         self.type = 'families'
 
 
 class Calendar(Entity):
     def __init__(self, campaign_id, json_data):
-        super(Calendar, self).__init__(campaign_id, json_data)
-        self.date = json_data['date']
-        if json_data['has_leap_year']:
-            self.leap_year = {'exist': json_data['has_leap_year'],
-                              'amount': json_data['leap_year_amount'],
-                              'month': json_data['leap_year_month'],
-                              'offset': json_data['leap_year_offset'],
-                              'start': json_data['leap_year_start']
+        Entity.__init__(self, campaign_id, json_data)
+        self.date = json_data.get('date')
+        if json_data.get('has_leap_year'):
+            self.leap_year = {'exist': json_data.get('has_leap_year'),
+                              'amount': json_data.get('leap_year_amount'),
+                              'month': json_data.get('leap_year_month'),
+                              'offset': json_data.get('leap_year_offset'),
+                              'start': json_data.get('leap_year_start')
                               }
         else:
             self.leap_year = {'exist': False}
-        self.months = json_data['months']
-        self.parameters = json_data['parameters']
-        self.seasons = json_data['seasons']
-        self.suffix = json_data['suffix']
-        self.weekdays = json_data['weekdays']
-        self.years = json_data['years']
+        self.months = json_data.get('months')
+        self.parameters = json_data.get('parameters')
+        self.seasons = json_data.get('seasons')
+        self.suffix = json_data.get('suffix')
+        self.weekdays = json_data.get('weekdays')
+        self.years = json_data.get('years')
         self.type = 'calendars'
 
     def get_month_names(self):
@@ -189,65 +170,65 @@ class Calendar(Entity):
 
 class Item(Entity):
     def __init__(self, campaign_id, json_data):
-        super(Item, self).__init__(campaign_id, json_data)
-        self.location_id = json_data['location_id']
-        self.character_id = json_data['character_id']
+        Entity.__init__(self, campaign_id, json_data)
+        self.location_id = json_data.get('location_id')
+        self.character_id = json_data.get('character_id')
         self.type = 'items'
 
 
 class Journal(Entity):
     def __init__(self, campaign_id, json_data):
-        super(Journal, self).__init__(campaign_id, json_data)
-        self.date = json_data['date']
-        self.character_id = json_data['character_id']
+        Entity.__init__(self, campaign_id, json_data)
+        self.date = json_data.get('date')
+        self.character_id = json_data.get('character_id')
         self.type = 'journals'
 
 
 class Organisation(Entity):
     def __init__(self, campaign_id, json_data):
-        super(Organisation, self).__init__(campaign_id, json_data)
-        self.location_id = json_data['location_id']
-        self.members = json_data['members']
+        Entity.__init__(self, campaign_id, json_data)
+        self.location_id = json_data.get('location_id')
+        self.members = json_data.get('members')
         self.type = 'organisations'
 
 
 class Quest(Entity):
     def __init__(self, campaign_id, json_data):
-        super(Quest, self).__init__(campaign_id, json_data)
-        self.character_id = json_data['character_id']
-        self.characters = json_data['characters']
-        self.is_completed = json_data['is_completed']
-        self.locations = json_data['locations']
-        self.parent_quest_id = json_data['quest_id']
+        Entity.__init__(self, campaign_id, json_data)
+        self.character_id = json_data.get('character_id')
+        self.characters = json_data.get('characters')
+        self.is_completed = json_data.get('is_completed')
+        self.locations = json_data.get('locations')
+        self.parent_quest_id = json_data.get('quest_id')
         self.type = 'quests'
 
 
 class Tag(Entity):
     def __init__(self, campaign_id, json_data):
-        super(Tag, self).__init__(campaign_id, json_data)
-        self.tag_id = json_data['tag_id']
+        Entity.__init__(self, campaign_id, json_data)
+        self.tag_id = json_data.get('tag_id')
         self.type = 'tags'
 
 
 class Note(Entity):
     def __init__(self, campaign_id, json_data):
-        super(Note, self).__init__(campaign_id, json_data)
-        # self.is_pinned = json_data['is_pinned']
+        Entity.__init__(self, campaign_id, json_data)
+        # self.is_pinned = json_data.get('is_pinned')
         self.type = 'notes'
 
 
 class Race(Entity):
     def __init__(self, campaign_id, json_data):
-        super(Race, self).__init__(campaign_id, json_data)
-        self.parent_race_id = json_data['race_id']
+        Entity.__init__(self, campaign_id, json_data)
+        self.parent_race_id = json_data.get('race_id')
         self.type = 'races'
 
 
 class Ability(Entity):
     def __init__(self, campaign_id, json_data):
-        super(Ability, self).__init__(campaign_id, json_data)
-        self.parent_ability_id = json_data['ability_id']
-        self.charges = json_data['charges']
+        Entity.__init__(self, campaign_id, json_data)
+        self.parent_ability_id = json_data.get('ability_id')
+        self.charges = json_data.get('charges')
         self.type = 'abilities'
 
 
@@ -295,10 +276,7 @@ class KankaView(commands.Cog):
         await self._set_headers()
         async with self.session.get(REQUEST_PATH + 'campaigns') as r:
             j = await r.json()
-            campaigns = []
-            for campaign in j['data']:
-                campaigns.append(Campaign(campaign))
-            return campaigns
+            return [Campaign(campaign) for campaign in j['data']]
 
     async def _get_campaign(self, id):
         await self._set_headers()
@@ -316,22 +294,13 @@ class KankaView(commands.Cog):
             raise ValueError('The related and cache parameters cannot both be'
                              ' true as the cache lacks this information.')
         elif related:
-            entity_id = str(entity_id) + '?related=1'
+            entity_id = f'{entity_id}?related=1'
         elif cache:
-            cached_entity = await self._check_cache(campaign_id, entity_type,
-                                                    entity_id)
+            cached_entity = await self._check_cache(campaign_id, entity_type, entity_id)
             if cached_entity is not None:
                 return cached_entity
 
-        async with self.session.get('{base_url}campaigns/'
-                                    '{campaign_id}'
-                                    '/{entity_type}/'
-                                    '{entity_id}'.format(
-                base_url=REQUEST_PATH,
-                campaign_id=campaign_id,
-                entity_type=entity_type,
-                entity_id=entity_id)
-        ) as r:
+        async with self.session.get(f'{REQUEST_PATH}campaigns/{campaign_id}/{entity_type}/{entity_id}') as r:
             j = await r.json()
             if entity_type == 'locations':
                 return Location(campaign_id, j['data'])
@@ -365,13 +334,7 @@ class KankaView(commands.Cog):
     async def _get_diceroll(self, campaign_id, diceroll_id):
         # TODO: I think dice rolls are broken right now. Report bug.
         # TODO: Search by name
-        async with self.session.get('{base_url}campaigns/'
-                                    '{campaign_id}'
-                                    '/dice_rolls/'
-                                    '{diceroll_id}'.format(
-                base_url=REQUEST_PATH,
-                campaign_id=campaign_id,
-                diceroll_id=diceroll_id)
+        async with self.session.get(f'{REQUEST_PATH}campaigns/{campaign_id}/dice_rolls/{diceroll_id}'
         ) as r:
             j = await r.json()
             return DiceRoll(campaign_id, j['data'])
@@ -438,7 +401,7 @@ class KankaView(commands.Cog):
 
         # Entry length limit due to Discord embed rules
         if len(entry) > 1900:
-            entry = entry[:1900] + '...' + '[ Read more.]({link})'.format(
+            entry = entry[:1900] + '... [Read more.]({link})'.format(
                     link=parent.link(await self._language(ctx), pretty=False)
                     )
 
@@ -457,17 +420,11 @@ class KankaView(commands.Cog):
         return CACHE[entity_type][entity_id]
 
     async def _search(self, cmpgn_id, query, kind=None):
-        async with self.session.get(
-                '{base_url}campaigns/{cmpgn_id}/search/{query}'.format(
-                    base_url=REQUEST_PATH,
-                    cmpgn_id=cmpgn_id,
-                    query=query
-                )
-        ) as r:
+        async with self.session.get(f'{REQUEST_PATH}campaigns/{cmpgn_id}/search/{query}') as r:
             j = await r.json()
             if kind:
-                for result in j['data']:
-                    if result['type'] == kind:
+                for result in j.get('data'):
+                    if result.get('type') == kind:
                         return result
             elif j['data']:
                 return j['data'][0]
@@ -475,10 +432,7 @@ class KankaView(commands.Cog):
                 return None
 
     async def _check_private(self, guild, entity):
-        if entity.is_private and await self.config.guild(guild).hide_private():
-            return True
-        else:
-            return False
+        return entity.is_private and await self.config.guild(guild).hide_private()
 
     async def _process_display_input(self, ctx, input, kind, alert=True):
         try:
@@ -515,9 +469,7 @@ class KankaView(commands.Cog):
         if entity.files:
             value = ''
             for file_name in entity.files:
-                value += '[{name}]({path}), '.format(
-                                                name=file_name,
-                                                path=entity.files[file_name])
+                value += f'[{file_name}]({entity.files[file_name]}), '
             em.add_field(name='Files', value=value[0:len(value) - 2])
 
         if entity.tags:
@@ -528,7 +480,7 @@ class KankaView(commands.Cog):
                                              tag_id, cache=True)
                 if not await self._check_private(ctx.guild, tag):
                     tags.append(tag.link(lang))
-            if tags != []:  # Hide tag field when all are private
+            if tags:  # Hide tag field when all are private
                 em.add_field(name='Tags', value=', '.join(tags))
 
         return em
@@ -765,7 +717,7 @@ class KankaView(commands.Cog):
         em.add_field(name='Date',
                      value=calendar.date + ' ' + calendar.suffix)
         em.add_field(name='Months', value=calendar.get_month_names())
-        em.add_field(name='Length', value=calendar.get_year_length())
+        em.add_field(name='Length', value=str(calendar.get_year_length()))
         em.add_field(name='Days', value=calendar.get_weekdays())
 
         await self._send(ctx, em)
@@ -841,8 +793,7 @@ class KankaView(commands.Cog):
         if id is None:
             return False
 
-        journal = await self._get_entity(await self._active(ctx), 'journals',
-                                         id)
+        journal = await self._get_entity(await self._active(ctx), 'journals', id)
 
         em = await self._display_entity(ctx, journal, alert)
         if em is None:
@@ -866,13 +817,11 @@ class KankaView(commands.Cog):
     async def display_organisation(self, ctx, input, alert=True):
         """Display selected organisation by name or ID."""
         # TODO: Get and list members
-        id = await self._process_display_input(ctx, input, 'organisation',
-                                               alert)
+        id = await self._process_display_input(ctx, input, 'organisation', alert)
         if id is None:
             return False
 
-        organisation = await self._get_entity(await self._active(ctx),
-                                              'organisations', id)
+        organisation = await self._get_entity(await self._active(ctx), 'organisations', id)
 
         em = await self._display_entity(ctx, organisation, alert)
         if em is None:
@@ -881,8 +830,15 @@ class KankaView(commands.Cog):
         lang = await self._language(ctx)
         cmpgn_id = organisation.campaign_id
 
-        # Turn into a link?
-        em.add_field(name='Members', value=organisation.members)
+        if organisation.members:
+            members = []
+            for m in organisation.members:
+                member = await self._get_entity(cmpgn_id, 'characters', m.get('character_id'), cache=True)
+                if not await self._check_private(ctx.guild, member):
+                    members.append(member.link(lang))
+        if members: # Hide field when all members are private
+            em.add_field(name='Members', value=', '.join(members))
+            # The members information in organisation.members includes an is_private field - consult that?
 
         if organisation.location_id is not None:
             location = await self._get_entity(cmpgn_id, 'locations',
@@ -1114,7 +1070,7 @@ class KankaView(commands.Cog):
         LANGUAGES = ['en', 'de', 'en-US', 'es', 'fr', 'pt-BR']
         if language in LANGUAGES:
             await self.config.guild(ctx.guild).language.set(language)
-            await ctx.send('Language set to {}'.format(language))
+            await ctx.send(f'Language set to {language}')
         else:
             await ctx.send_help()
 
