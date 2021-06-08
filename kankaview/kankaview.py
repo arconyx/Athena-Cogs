@@ -12,33 +12,6 @@ CACHE = {}
 # TODO: OAuth user tokens?
 
 
-
-# @dataclass
-# class NewCampaign:
-#     id: int
-#     name: str
-#     locale: str
-#     entry: str
-#     visibility: str
-#     created_at: str
-#     updated_at: str
-#     members: list
-#     image: str = None
-#
-#     def __post_init__(self):
-#         self.image = f"{STORAGE_PATH}{self.image}" if self.image is not None else ""
-#         self.type = 'campaign'
-#
-#     @classmethod
-#     def from_json(cls, **json_dict):
-#         return cls(**json_dict)
-
-
-# with open('campaignData.json') as file:
-#     data = json.load(file).get('data')
-#     c = NewCampaign.from_json(**data)
-
-
 class Campaign:
     def __init__(self, json_data):
         self.id = json_data.get('id')
