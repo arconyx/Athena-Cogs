@@ -1,14 +1,16 @@
 {
-    "AUTHOR" : "ArcOnyx",
-    "DISABLED" : true,
-    "DESCRIPTION" : "UNFINISHED. Runs games of mafia right in Discord!",
-    "INSTALL_MSG" : "Warning: This cog is only partially complete and isn't ready for use.",
-    "NAME" : "Mafia",
-    "REQUIREMENTS" : [
+    "author": [
+        "ArcOnyx"
+    ],
+    "disabled": true,
+    "description": "UNFINISHED. Runs games of mafia right in Discord!",
+    "install_msg": "Warning: This cog is only partially complete and isn't ready for use.",
+    "name": "Mafia",
+    "requirements": [
         "uuid"
     ],
-    "SHORT" : "UNFINISHED! Runs mafia games in Discord.",
-    "TAGS" : [
+    "short": "UNFINISHED! Runs mafia games in Discord.",
+    "tags": [
         "mafia",
         "game",
         "fun"
