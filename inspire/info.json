@@ -2,11 +2,7 @@
   "author": [
     "ArcOnyx"
   ],
-  "bot_version": [
-    3,
-    0,
-    0
-  ],
+  "min_bot_version": "3.0.0",
   "description": "Get AI generated inspirational quotes from InspiroBot.",
   "install_msg": "Thanks for installing Inspire! Don't forget to check out the InspiroBot website (http://inspirobot.me), all I did was write an API call.",
   "name": "Inspire",

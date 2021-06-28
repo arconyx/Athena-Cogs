@@ -2,11 +2,7 @@
     "author": [
         "ArcOnyx"
     ],
-    "bot_version": [
-        3,
-        0,
-        0
-    ],
+    "min_bot_version": "3.0.0",
     "description": "Get the data for the latest earthquake at or above a specified MMMI in the New Zealand region from GeoNet.",
     "install_msg": "Thanks for installing Quake! A couple of things worth noting. Firstly, this cog gets its data from the wonderful https://www.geonet.org.nz and so is only useful for New Zealand. Secondly, quakes may take a short time to appear on the site and so you'll want to wait a minute or two after a quake to run the command.",
     "name": "Quake",

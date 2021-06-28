@@ -4,11 +4,7 @@
         "AG The Guardian",
         "Apollonaut13"
     ],
-    "min_bot_version": [
-        3,
-        4,
-        0
-    ],
+    "min_bot_version": "3.4.0",
     "description": "Access entities from all your Kanka campaigns in Discord.",
     "install_msg": "Thanks for installing KankaView! This ties into the API for Kanka, a fantastic worldbuilding and campaign management tool. You can find it here: https://kanka.io\nBe aware that you'll need to set an application token to use the API - you can get tokens from your profile page on the site.",
     "end_user_data_statement": "The cog caches entity data from loaded campaigns to speed up certain commands.",
