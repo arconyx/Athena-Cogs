@@ -426,7 +426,7 @@ class KankaView(commands.Cog):
                 for result in j.get('data'):
                     if result.get('type') == kind:
                         return result
-            elif 'data' in j:
+            elif 'data' in j and j['data']:
                 return j['data'][0]
             else:
                 return None
@@ -836,9 +836,9 @@ class KankaView(commands.Cog):
                 member = await self._get_entity(cmpgn_id, 'characters', m.get('character_id'), cache=True)
                 if not await self._check_private(ctx.guild, member):
                     members.append(member.link(lang))
-        if members: # Hide field when all members are private
-            em.add_field(name='Members', value=', '.join(members))
-            # The members information in organisation.members includes an is_private field - consult that?
+            if members: # Hide field when all members are private
+                em.add_field(name='Members', value=', '.join(members))
+                # The members information in organisation.members includes an is_private field - consult that?
 
         if organisation.location_id is not None:
             location = await self._get_entity(cmpgn_id, 'locations',
