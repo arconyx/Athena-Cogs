@@ -426,7 +426,7 @@ class KankaView(commands.Cog):
                 for result in j.get('data'):
                     if result.get('type') == kind:
                         return result
-            elif j['data']:
+            elif 'data' in j:
                 return j['data'][0]
             else:
                 return None
