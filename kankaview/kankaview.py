@@ -2,6 +2,7 @@ from redbot.core import commands, Config, checks
 import discord
 import aiohttp
 from markdownify import markdownify as md
+import logging
 
 DEFAULT_SETTINGS = {'token': None, 'language': 'en', 'hide_private': True}
 REQUEST_PATH = 'https://kanka.io/api/1.0/'
@@ -233,7 +234,8 @@ class Ability(Entity):
 
 
 class KankaView(commands.Cog):
-    def __init__(self):
+    def __init__(self, bot):
+        self.bot = bot
         self.config = Config.get_conf(self, identifier=56456483622343233254868,
                                       force_registration=True)
         self.config.register_global(
@@ -245,6 +247,12 @@ class KankaView(commands.Cog):
             active=None
         )
         self.session = None
+        self.log = logging.getLogger('red.Athena-Cogs.kankaview')
+        if self.bot.get_cog('Dev'):
+            self.dev = True
+            self.log.info("KankaView running in debug mode.")
+        else:
+            self.dev = False
 
     async def _language(self, ctx):
         language = await self.config.guild(ctx.guild).language()
@@ -302,34 +310,42 @@ class KankaView(commands.Cog):
 
         async with self.session.get(f'{REQUEST_PATH}campaigns/{campaign_id}/{entity_type}/{entity_id}') as r:
             j = await r.json()
-            if entity_type == 'locations':
-                return Location(campaign_id, j['data'])
-            elif entity_type == 'characters':
-                return Character(campaign_id, j['data'])
-            elif entity_type == 'organisations':
-                return Organisation(campaign_id, j['data'])
-            elif entity_type == 'items':
-                return Item(campaign_id, j['data'])
-            elif entity_type == 'families':
-                return Family(campaign_id, j['data'])
-            elif entity_type == 'quests':
-                return Quest(campaign_id, j['data'])
-            elif entity_type == 'events':
-                return Event(campaign_id, j['data'])
-            elif entity_type == 'notes':
-                return Note(campaign_id, j['data'])
-            elif entity_type == 'calendars':
-                return Calendar(campaign_id, j['data'])
-            elif entity_type == 'tags':
-                return Tag(campaign_id, j['data'])
-            elif entity_type == 'journals':
-                return Journal(campaign_id, j['data'])
-            elif entity_type == 'races':
-                return Race(campaign_id, j['data'])
-            elif entity_type == 'abilities':
-                return Ability(campaign_id, j['data'])
-            else:
+            if self.dev:
+                self.log.info(f"Get returned from {r.url} with status code {r.status}. Body follows.")
+                self.log.info(j)
+            if r.status == 200:
+                if entity_type == 'locations':
+                    return Location(campaign_id, j['data'])
+                elif entity_type == 'characters':
+                    return Character(campaign_id, j['data'])
+                elif entity_type == 'organisations':
+                    return Organisation(campaign_id, j['data'])
+                elif entity_type == 'items':
+                    return Item(campaign_id, j['data'])
+                elif entity_type == 'families':
+                    return Family(campaign_id, j['data'])
+                elif entity_type == 'quests':
+                    return Quest(campaign_id, j['data'])
+                elif entity_type == 'events':
+                    return Event(campaign_id, j['data'])
+                elif entity_type == 'notes':
+                    return Note(campaign_id, j['data'])
+                elif entity_type == 'calendars':
+                    return Calendar(campaign_id, j['data'])
+                elif entity_type == 'tags':
+                    return Tag(campaign_id, j['data'])
+                elif entity_type == 'journals':
+                    return Journal(campaign_id, j['data'])
+                elif entity_type == 'races':
+                    return Race(campaign_id, j['data'])
+                elif entity_type == 'abilities':
+                    return Ability(campaign_id, j['data'])
+            elif r.status == 404:
                 return None
+            else:
+                await self.log.warning(f"Unable to complete request. Server returned status code {r.status}.")
+                return None
+                
 
     async def _get_diceroll(self, campaign_id, diceroll_id):
         # TODO: I think dice rolls are broken right now. Report bug.
@@ -422,13 +438,22 @@ class KankaView(commands.Cog):
     async def _search(self, cmpgn_id, query, kind=None):
         async with self.session.get(f'{REQUEST_PATH}campaigns/{cmpgn_id}/search/{query}') as r:
             j = await r.json()
-            if kind:
-                for result in j.get('data'):
-                    if result.get('type') == kind:
-                        return result
-            elif 'data' in j and j['data']:
-                return j['data'][0]
-            else:
+            if self.dev:
+                self.log.info(f"Get returned from {r.url} with status code {r.status}. Body follows.")
+                self.log.info(j)
+            if r.status==200:
+                # if they've specificied a type, look for it
+                if kind and j.get('data'):
+                    for result in j.get('data'):
+                        if result.get('type') == kind:
+                            return result
+                    return None # if the loop ends with no matches the search couldn't find it
+                elif j.get('data'): # if not just blindly grab the first result
+                    return j['data'][0]
+                elif 'data' in j: # if the search results are empty report no match
+                    return None
+            else: # if data is missing or status code not 200 log a warning
+                self.log.warning(f"Search failed due to response issue. Response code {r.status}.")
                 return None
 
     async def _check_private(self, guild, entity):
@@ -451,7 +476,10 @@ class KankaView(commands.Cog):
     async def _display_entity(self, ctx, entity, alert=True):
         """Generate basic embed for any entity type"""
         # TODO: Attributes and relations
-        if await self._check_private(ctx.guild, entity):
+        if entity is None:
+            await ctx.send(MSG_ENTITY_NOT_FOUND)
+            return None
+        elif await self._check_private(ctx.guild, entity):
             if alert:
                 await ctx.send(MSG_ENTITY_NOT_FOUND)
             return None
@@ -992,46 +1020,47 @@ class KankaView(commands.Cog):
             await ctx.send(MSG_ENTITY_NOT_FOUND)
             return False
 
-        type = entity['type']
+        kind = entity['type']
         id = entity['id']
 
-        if type == 'character':
+        # We have to get the entity again because the search endpoint gives truncated data
+        if kind == 'character':
             await self.display_character(ctx, id)
             return
-        elif type == 'location':
+        elif kind == 'location':
             await self.display_location(ctx, id)
             return
-        elif type == 'organisation':
+        elif kind == 'organisation':
             await self.display_organisation(ctx, id)
             return
-        elif type == 'family':
+        elif kind == 'family':
             await self.display_family(ctx, id)
             return
-        elif type == 'calendar':
+        elif kind == 'calendar':
             await self.display_calendar(ctx, id)
             return
-        elif type == 'race':
+        elif kind == 'race':
             await self.display_race(ctx, id)
             return
-        elif type == 'quest':
+        elif kind == 'quest':
             await self.display_quest(ctx, id)
             return
-        elif type == 'journal':
+        elif kind == 'journal':
             await self.display_journal(ctx, id)
             return
-        elif type == 'item':
+        elif kind == 'item':
             await self.display_item(ctx, id)
             return
-        elif type == 'event':
+        elif kind == 'event':
             await self.display_event(ctx, id)
             return
-        elif type == 'note':
+        elif kind == 'note':
             await self.display_note(ctx, id)
             return
-        elif type == 'tag':
+        elif kind == 'tag':
             await self.display_tag(ctx, id)
             return
-        elif type == 'ability':
+        elif kind == 'ability':
             await self.display_ability(ctx, id)
             return
         else:
