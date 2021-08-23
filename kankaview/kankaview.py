@@ -437,13 +437,18 @@ class KankaView(commands.Cog):
     async def _search(self, cmpgn_id, query, kind=None):
         async with self.session.get(f'{REQUEST_PATH}campaigns/{cmpgn_id}/search/{query}') as r:
             j = await r.json()
-            if kind:
+            if self.dev:
+                self.log.info(f"Get returned from {r.url} with status code {r.status}. Body follows.")
+                self.log.info(j)
+            if r.status==200 and kind: # if they've specificied a type, look for it
                 for result in j.get('data'):
                     if result.get('type') == kind:
                         return result
-            elif 'data' in j and j['data']:
+                return None # if the loop ends with no matches the search couldn't find it
+            if r.status==200 and j.get('data'): # if not just blindly grab the first result
                 return j['data'][0]
             else:
+                self.log.warn(f"Search failed due to response issue. Response code {r.status}.")
                 return None
 
     async def _check_private(self, guild, entity):
@@ -1010,46 +1015,46 @@ class KankaView(commands.Cog):
             await ctx.send(MSG_ENTITY_NOT_FOUND)
             return False
 
-        type = entity['type']
+        kind = entity['type']
         id = entity['id']
 
-        if type == 'character':
+        if kind == 'character':
             await self.display_character(ctx, id)
             return
-        elif type == 'location':
+        elif kind == 'location':
             await self.display_location(ctx, id)
             return
-        elif type == 'organisation':
+        elif kind == 'organisation':
             await self.display_organisation(ctx, id)
             return
-        elif type == 'family':
+        elif kind == 'family':
             await self.display_family(ctx, id)
             return
-        elif type == 'calendar':
+        elif kind == 'calendar':
             await self.display_calendar(ctx, id)
             return
-        elif type == 'race':
+        elif kind == 'race':
             await self.display_race(ctx, id)
             return
-        elif type == 'quest':
+        elif kind == 'quest':
             await self.display_quest(ctx, id)
             return
-        elif type == 'journal':
+        elif kind == 'journal':
             await self.display_journal(ctx, id)
             return
-        elif type == 'item':
+        elif kind == 'item':
             await self.display_item(ctx, id)
             return
-        elif type == 'event':
+        elif kind == 'event':
             await self.display_event(ctx, id)
             return
-        elif type == 'note':
+        elif kind == 'note':
             await self.display_note(ctx, id)
             return
-        elif type == 'tag':
+        elif kind == 'tag':
             await self.display_tag(ctx, id)
             return
-        elif type == 'ability':
+        elif kind == 'ability':
             await self.display_ability(ctx, id)
             return
         else:
