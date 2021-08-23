@@ -250,6 +250,7 @@ class KankaView(commands.Cog):
         self.log = logging.getLogger('red.Athena-Cogs.kankaview')
         if self.bot.get_cog('Dev'):
             self.dev = True
+            self.log.info("KankaView running in debug mode.")
         else:
             self.dev = False
 
