@@ -2,6 +2,7 @@ from redbot.core import commands, Config, checks
 import discord
 import aiohttp
 from markdownify import markdownify as md
+import logging
 
 DEFAULT_SETTINGS = {'token': None, 'language': 'en', 'hide_private': True}
 REQUEST_PATH = 'https://kanka.io/api/1.0/'
@@ -233,7 +234,8 @@ class Ability(Entity):
 
 
 class KankaView(commands.Cog):
-    def __init__(self):
+    def __init__(self, bot):
+        self.bot = bot
         self.config = Config.get_conf(self, identifier=56456483622343233254868,
                                       force_registration=True)
         self.config.register_global(
@@ -245,6 +247,11 @@ class KankaView(commands.Cog):
             active=None
         )
         self.session = None
+        self.log = logging.getLogger('red.Athena-Cogs.kankaview')
+        if self.bot.get_cog('Dev'):
+            self.dev = True
+        else:
+            self.dev = False
 
     async def _language(self, ctx):
         language = await self.config.guild(ctx.guild).language()
@@ -302,6 +309,9 @@ class KankaView(commands.Cog):
 
         async with self.session.get(f'{REQUEST_PATH}campaigns/{campaign_id}/{entity_type}/{entity_id}') as r:
             j = await r.json()
+            if self.dev:
+                self.log.info(f"Get returned from {r.url} with status code {r.status}. Body follows.")
+                self.log.info(j)
             if entity_type == 'locations':
                 return Location(campaign_id, j['data'])
             elif entity_type == 'characters':
