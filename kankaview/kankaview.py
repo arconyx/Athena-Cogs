@@ -342,7 +342,7 @@ class KankaView(commands.Cog):
             elif r.status == 404:
                 return None
             else:
-                await self.log.warn(f"Unable to complete request. Server returned status code {r.status}.")
+                await self.log.warning(f"Unable to complete request. Server returned status code {r.status}.")
                 return None
                 
 
@@ -440,15 +440,19 @@ class KankaView(commands.Cog):
             if self.dev:
                 self.log.info(f"Get returned from {r.url} with status code {r.status}. Body follows.")
                 self.log.info(j)
-            if r.status==200 and kind: # if they've specificied a type, look for it
-                for result in j.get('data'):
-                    if result.get('type') == kind:
-                        return result
-                return None # if the loop ends with no matches the search couldn't find it
-            if r.status==200 and j.get('data'): # if not just blindly grab the first result
-                return j['data'][0]
-            else:
-                self.log.warn(f"Search failed due to response issue. Response code {r.status}.")
+            if r.status==200:
+                # if they've specificied a type, look for it
+                if kind and j.get('data'):
+                    for result in j.get('data'):
+                        if result.get('type') == kind:
+                            return result
+                    return None # if the loop ends with no matches the search couldn't find it
+                elif j.get('data'): # if not just blindly grab the first result
+                    return j['data'][0]
+                elif 'data' in j: # if the search results are empty report no match
+                    return None
+            else: # if data is missing or status code not 200 log a warning
+                self.log.warning(f"Search failed due to response issue. Response code {r.status}.")
                 return None
 
     async def _check_private(self, guild, entity):
@@ -1018,6 +1022,7 @@ class KankaView(commands.Cog):
         kind = entity['type']
         id = entity['id']
 
+        # We have to get the entity again because the search endpoint gives truncated data
         if kind == 'character':
             await self.display_character(ctx, id)
             return
