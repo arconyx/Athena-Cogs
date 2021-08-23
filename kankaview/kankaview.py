@@ -312,34 +312,39 @@ class KankaView(commands.Cog):
             if self.dev:
                 self.log.info(f"Get returned from {r.url} with status code {r.status}. Body follows.")
                 self.log.info(j)
-            if entity_type == 'locations':
-                return Location(campaign_id, j['data'])
-            elif entity_type == 'characters':
-                return Character(campaign_id, j['data'])
-            elif entity_type == 'organisations':
-                return Organisation(campaign_id, j['data'])
-            elif entity_type == 'items':
-                return Item(campaign_id, j['data'])
-            elif entity_type == 'families':
-                return Family(campaign_id, j['data'])
-            elif entity_type == 'quests':
-                return Quest(campaign_id, j['data'])
-            elif entity_type == 'events':
-                return Event(campaign_id, j['data'])
-            elif entity_type == 'notes':
-                return Note(campaign_id, j['data'])
-            elif entity_type == 'calendars':
-                return Calendar(campaign_id, j['data'])
-            elif entity_type == 'tags':
-                return Tag(campaign_id, j['data'])
-            elif entity_type == 'journals':
-                return Journal(campaign_id, j['data'])
-            elif entity_type == 'races':
-                return Race(campaign_id, j['data'])
-            elif entity_type == 'abilities':
-                return Ability(campaign_id, j['data'])
-            else:
+            if r.status == 200:
+                if entity_type == 'locations':
+                    return Location(campaign_id, j['data'])
+                elif entity_type == 'characters':
+                    return Character(campaign_id, j['data'])
+                elif entity_type == 'organisations':
+                    return Organisation(campaign_id, j['data'])
+                elif entity_type == 'items':
+                    return Item(campaign_id, j['data'])
+                elif entity_type == 'families':
+                    return Family(campaign_id, j['data'])
+                elif entity_type == 'quests':
+                    return Quest(campaign_id, j['data'])
+                elif entity_type == 'events':
+                    return Event(campaign_id, j['data'])
+                elif entity_type == 'notes':
+                    return Note(campaign_id, j['data'])
+                elif entity_type == 'calendars':
+                    return Calendar(campaign_id, j['data'])
+                elif entity_type == 'tags':
+                    return Tag(campaign_id, j['data'])
+                elif entity_type == 'journals':
+                    return Journal(campaign_id, j['data'])
+                elif entity_type == 'races':
+                    return Race(campaign_id, j['data'])
+                elif entity_type == 'abilities':
+                    return Ability(campaign_id, j['data'])
+            elif r.status == 404:
                 return None
+            else:
+                await self.log.warn(f"Unable to complete request. Server returned status code {r.status}.")
+                return None
+                
 
     async def _get_diceroll(self, campaign_id, diceroll_id):
         # TODO: I think dice rolls are broken right now. Report bug.
@@ -461,7 +466,10 @@ class KankaView(commands.Cog):
     async def _display_entity(self, ctx, entity, alert=True):
         """Generate basic embed for any entity type"""
         # TODO: Attributes and relations
-        if await self._check_private(ctx.guild, entity):
+        if entity is None:
+            await ctx.send(MSG_ENTITY_NOT_FOUND)
+            return None
+        elif await self._check_private(ctx.guild, entity):
             if alert:
                 await ctx.send(MSG_ENTITY_NOT_FOUND)
             return None
