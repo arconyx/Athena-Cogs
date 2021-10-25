@@ -7,7 +7,7 @@ import aiohttp
 
 class Quake(commands.Cog):
     @commands.command()
-    async def quake(self, ctx, mmi: int = 4):
+    async def quake(self, ctx, mmi: int = 3):
         """Polls GeoNet for their latest quake and publishes the info"""
         if mmi < -1 or mmi > 8:
             await ctx.send('The Modified Mercalli Intensity given must be'
@@ -15,7 +15,7 @@ class Quake(commands.Cog):
                            'left blank.')
         else:
             # Call the GeoNet API https://api.geonet.org.nz
-            # Returns quakes with MMI >= 4 in the New Zealand region during the
+            # Returns quakes with MMI >= 3 in the New Zealand region during the
             # last 365 days up to a maximum of 100 quakes.
             async with aiohttp.ClientSession() as session:
                 async with session.get('https://api.geonet.org.nz/quake',
