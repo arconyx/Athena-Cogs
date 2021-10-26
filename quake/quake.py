@@ -38,10 +38,17 @@ class Quake(commands.Cog):
                             await ctx.send('No quakes found that match the given parameters in the last 365 days.')
                             return
                         shake = jsonified['features'][i]['properties']
+                        shake['coords'] = jsonified['features'][i]['geometry']['coordinates']
                         i += 1
 
                     # Get a timestamp for use with Discord time formatting
                     timestamp = round(dtparse.parse(shake['time']).timestamp())
+
+                    # Generate url with map marker
+                    # GeoJSOMN uses [long, lat] but Google uses [lat, long] so we reverse it
+                    coords_str = '%2C'.join(str(e) for e in reversed(
+                        shake['coords']))  # %2C is a comma
+                    map_url = f'https://www.google.com/maps/search/?api=1&query={coords_str}'
 
                     # Create the embed
                     em = discord.Embed(title=shake['publicID'],
@@ -54,7 +61,8 @@ class Quake(commands.Cog):
                     em.add_field(name='Magnitude', value=shake['magnitude'])
                     em.add_field(name='Time', value=f'<t:{timestamp}:R>')
                     em.add_field(name='Quality', value=shake['quality'])
-                    em.add_field(name='Location', value=shake['locality'])
+                    em.add_field(name='Location', value='[{}]({})'.format(
+                        shake['locality'], map_url))
                     em.add_field(name='MMI', value=shake['mmi'])
                     em.add_field(name='Depth', value=str(shake['depth'])+' km')
 
