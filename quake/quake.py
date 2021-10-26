@@ -32,7 +32,11 @@ class Quake(commands.Cog):
                     # Possibly quality levels are best, preliminary, automatic, deleted
                     shake = {'quality': 'deleted'}
                     i = 0
+                    max_i = len(jsonified['features'])
                     while shake['quality'] == 'deleted':
+                        if i >= max_i:
+                            await ctx.send('No quakes found that match the given parameters in the last 365 days.')
+                            return
                         shake = jsonified['features'][i]['properties']
                         i += 1
 
