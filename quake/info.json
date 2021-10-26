@@ -10,5 +10,6 @@
     "tags": [
         "geonet",
         "earthquake"
-    ]
+    ],
+    "requirements": ["python-dateutils"]
 }
