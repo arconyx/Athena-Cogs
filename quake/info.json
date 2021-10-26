@@ -11,5 +11,5 @@
         "geonet",
         "earthquake"
     ],
-    "requirements": ["python-dateutils"]
+    "requirements": ["python-dateutil"]
 }
