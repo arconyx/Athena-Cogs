@@ -22,8 +22,8 @@ class Quake(commands.Cog):
                 async with session.get('https://api.geonet.org.nz/quake',
                                        params={'MMI': mmi},
                                        headers={
-                                           'accept':
-                                           'application/vnd.geo+json;version=2'}
+                                           'accept': 'application/vnd.geo+json;version=2',
+                                           'Accept-Encoding': 'gzip'}
                                        ) as recentquakes:
                     # Convert to json
                     jsonified = await recentquakes.json()
@@ -41,7 +41,7 @@ class Quake(commands.Cog):
 
                     # Create the embed
                     em = discord.Embed(title=shake['publicID'],
-                                       description='Most recent quake with MMI>={}'
+                                       description='Most recent quake with MMI>={} '
                                        'on GeoNet'.format(mmi),
                                        url='https://www.geonet.org.nz/quakes/'
                                        'region/newzealand/{}'.format(
