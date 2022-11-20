@@ -269,11 +269,10 @@ class KankaView(commands.Cog):
         self.config.register_guild(hide_private=True, language="en", active=None)
         self.session = None
         self.log = logging.getLogger("red.Athena-Cogs.kankaview")
+        self.log.setLevel("WARNING")
         if self.bot.get_cog("Dev"):
-            self.dev = True
-            self.log.info("KankaView running in debug mode.")
-        else:
-            self.dev = False
+            self.log.setLevel("DEBUG")
+            self.log.debug("KankaView running in debug mode.")
 
     async def _language(self, ctx):
         language = await self.config.guild(ctx.guild).language()
@@ -303,9 +302,26 @@ class KankaView(commands.Cog):
             await self.session.close()
         self.session = aiohttp.ClientSession(headers=self.headers)
 
+    async def _verify_response(self, r: aiohttp.ClientResponse, check_json=True):
+        if r.status == 200:
+            if check_json and "data" not in r.json():
+                self.log.debug(f"Data key not in reponse to query {r.url}")
+                self.log.debug(f"Response is {r.json()}")
+                return False
+            return True
+        elif r.status == 404:
+            return False
+        else:
+            await self.log.warning(
+                "Unable to complete request. Server returned status code {r.status}."
+            )
+            return False
+
     async def _get_campaigns_list(self):
         await self._set_headers()
         async with self.session.get(REQUEST_PATH + "campaigns") as r:
+            if not self._verify_response(r):
+                return None
             j = await r.json()
             return [Campaign(campaign) for campaign in j["data"]]
 
@@ -314,6 +330,8 @@ class KankaView(commands.Cog):
         async with self.session.get(
             "{base_url}campaigns/{id}".format(base_url=REQUEST_PATH, id=id)
         ) as r:
+            if not self._verify_response(r):
+                return None
             j = await r.json()
             return Campaign(j["data"])
 
@@ -336,47 +354,45 @@ class KankaView(commands.Cog):
         async with self.session.get(
             f"{REQUEST_PATH}campaigns/{campaign_id}/{entity_type}/{entity_id}"
         ) as r:
-            j = await r.json()
-            if self.dev:
-                self.log.info(
-                    f"Get returned from {r.url} with status code {r.status}."
-                    "Body follows."
-                )
-                self.log.info(j)
-            if r.status == 200:
-                if entity_type == "locations":
-                    return Location(campaign_id, j["data"])
-                elif entity_type == "characters":
-                    return Character(campaign_id, j["data"])
-                elif entity_type == "organisations":
-                    return Organisation(campaign_id, j["data"])
-                elif entity_type == "items":
-                    return Item(campaign_id, j["data"])
-                elif entity_type == "families":
-                    return Family(campaign_id, j["data"])
-                elif entity_type == "quests":
-                    return Quest(campaign_id, j["data"])
-                elif entity_type == "events":
-                    return Event(campaign_id, j["data"])
-                elif entity_type == "notes":
-                    return Note(campaign_id, j["data"])
-                elif entity_type == "calendars":
-                    return Calendar(campaign_id, j["data"])
-                elif entity_type == "tags":
-                    return Tag(campaign_id, j["data"])
-                elif entity_type == "journals":
-                    return Journal(campaign_id, j["data"])
-                elif entity_type == "races":
-                    return Race(campaign_id, j["data"])
-                elif entity_type == "abilities":
-                    return Ability(campaign_id, j["data"])
-            elif r.status == 404:
+            if not self._verify_response(r):
                 return None
+            j = await r.json()
 
-            await self.log.warning(
-                f"Unable to complete request. Server returned status code {r.status}."
+            self.log.debug(
+                f"Get returned from {r.url} with status code {r.status}."
+                "Body follows."
             )
-            return None
+            self.log.debug(j)
+
+            if entity_type == "locations":
+                return Location(campaign_id, j["data"])
+            elif entity_type == "characters":
+                return Character(campaign_id, j["data"])
+            elif entity_type == "organisations":
+                return Organisation(campaign_id, j["data"])
+            elif entity_type == "items":
+                return Item(campaign_id, j["data"])
+            elif entity_type == "families":
+                return Family(campaign_id, j["data"])
+            elif entity_type == "quests":
+                return Quest(campaign_id, j["data"])
+            elif entity_type == "events":
+                return Event(campaign_id, j["data"])
+            elif entity_type == "notes":
+                return Note(campaign_id, j["data"])
+            elif entity_type == "calendars":
+                return Calendar(campaign_id, j["data"])
+            elif entity_type == "tags":
+                return Tag(campaign_id, j["data"])
+            elif entity_type == "journals":
+                return Journal(campaign_id, j["data"])
+            elif entity_type == "races":
+                return Race(campaign_id, j["data"])
+            elif entity_type == "abilities":
+                return Ability(campaign_id, j["data"])
+            else:
+                self.log.debug(f"Invalid entity type for request {r.url} in return {j}")
+                return None
 
     async def _get_diceroll(self, campaign_id, diceroll_id):
         # TODO: I think dice rolls are broken right now. Report bug.
@@ -424,7 +440,11 @@ class KankaView(commands.Cog):
                     page=page,
                 )
             ) as r:
+                if not self._verify_response(r):
+                    self.log.warning("Error while caching, aborting.")
+                    return
                 j = await r.json()
+
                 # Use meta element page count instead?
                 if len(j["data"]) == 0:
                     done = True
@@ -472,29 +492,26 @@ class KankaView(commands.Cog):
         async with self.session.get(
             f"{REQUEST_PATH}campaigns/{cmpgn_id}/search/{query}"
         ) as r:
+            if not self._verify_response(r):
+                return None
+
             j = await r.json()
-            if self.dev:
-                self.log.info(
-                    f"Get returned from {r.url} with status code {r.status}."
-                    "Body follows."
-                )
-                self.log.info(j)
-            if r.status == 200:
-                # if they've specified a type, look for it
-                if kind and j.get("data"):
-                    for result in j.get("data"):
-                        if result.get("type") == kind:
-                            return result
-                    # if the loop ends with no matches the search couldn't find it
-                    return None
-                elif j.get("data"):  # if not just blindly grab the first result
-                    return j["data"][0]
-                elif "data" in j:  # if the search results are empty report no match
-                    return None
-            else:  # if data is missing or status code not 200 log a warning
-                self.log.warning(
-                    f"Search failed due to response issue. Response code {r.status}."
-                )
+            self.log.debug(
+                f"Get returned from {r.url} with status code {r.status}."
+                "Body follows."
+            )
+            self.log.debug(j)
+
+            # if they've specified a type, look for it
+            if kind and j.get("data"):
+                for result in j.get("data"):
+                    if result.get("type") == kind:
+                        return result
+                # if the loop ends with no matches the search couldn't find it
+                return None
+            elif j.get("data"):  # if not just blindly grab the first result
+                return j["data"][0]
+            elif "data" in j:  # if the search results are empty report no match
                 return None
 
     async def _check_private(self, guild, entity):
