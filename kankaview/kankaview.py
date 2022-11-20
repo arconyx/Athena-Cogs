@@ -1209,6 +1209,8 @@ class KankaView(commands.Cog):
         elif entity_type == "ability":
             await self.display_ability(ctx, id)
             return
+        elif entity_type == "creature":
+            await self.display_creature(ctx, id)
         else:
             await ctx.send(MSG_ENTITY_NOT_FOUND)
             return
