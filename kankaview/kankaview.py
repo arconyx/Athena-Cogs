@@ -1084,6 +1084,44 @@ class KankaView(commands.Cog):
         await self._send(ctx, em)
         return True
 
+    @kanka.command(name="creature")
+    async def display_creature(self, ctx, input, alert=True):
+        """Display selected creature by name or ID."""
+        id = await self._process_display_input(ctx, input, "creature", alert)
+        if id is None:
+            return False
+
+        creature: Creature = await self._get_entity(
+            await self._active(ctx), "creatures", id
+        )
+
+        em = await self._display_entity(ctx, creature, alert)
+        if em is None:
+            return False
+
+        lang = await self._language(ctx)
+        cmpgn_id = creature.campaign_id
+
+        if creature.parent_creature_id is not None:
+            parent = await self._get_entity(
+                cmpgn_id, "creatures", creature.parent_creature_id, cache=True
+            )
+            em.add_field(name="Parent Creature", value=parent.link(lang))
+
+        if creature.locations:
+            locations = []
+            for loc_id in creature.locations:
+                loc: Location = await self._get_entity(
+                    creature.campaign_id, "locations", loc_id, cache=True
+                )
+                if not await self._check_private(ctx.guild, loc):
+                    locations.append(loc.link(lang))
+            if locations:
+                em.add_field(name="Locations", value=creature.locations)
+
+        await self._send(ctx, em)
+        return True
+
     @kanka.command(name="search")
     async def display_search(self, ctx, query):
         """Display selected Entity."""
