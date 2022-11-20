@@ -260,6 +260,14 @@ class Ability(Entity):
         self.entity_type = "abilities"
 
 
+class Creature(Entity):
+    def __init__(self, campaign_id, json_data):
+        super().__init__(campaign_id, json_data)
+        self.parent_creature_id = json_data.get("creature_id")
+        self.locations = json_data.get("locations")
+        self.entity_type = "Creatures"
+
+
 class KankaView(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -391,6 +399,8 @@ class KankaView(commands.Cog):
                 return Race(campaign_id, j["data"])
             elif entity_type == "abilities":
                 return Ability(campaign_id, j["data"])
+            elif entity_type == "creatures":
+                return Creature(campaign_id, j["data"])
             else:
                 self.log.debug(f"Invalid entity type for request {r.url} in return {j}")
                 return None
