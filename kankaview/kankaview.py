@@ -116,7 +116,7 @@ class Entity:
 
 class Character(Entity):
     def __init__(self, campaign_id, json_data):
-        super().__init__(self, campaign_id, json_data)
+        super().__init__(campaign_id, json_data)
         self.age = json_data.get("age")
         self.family_id = json_data.get("family_id")
         self.is_dead = json_data.get("is_dead")
@@ -129,7 +129,7 @@ class Character(Entity):
 
 class Location(Entity):
     def __init__(self, campaign_id, json_data):
-        super().__init__(self, campaign_id, json_data)
+        super().__init__(campaign_id, json_data)
         self.parent_location_id = json_data.get("parent_location_id")
         self.map = json_data.get("map")
         if "https://kanka.io/images/defaults" in self.map:
@@ -139,7 +139,7 @@ class Location(Entity):
 
 class Event(Entity):
     def __init__(self, campaign_id, json_data):
-        super().__init__(self, campaign_id, json_data)
+        super().__init__(campaign_id, json_data)
         self.date = json_data.get("date")
         self.location_id = json_data.get("location_id")
         self.entity_type = "events"
@@ -147,7 +147,7 @@ class Event(Entity):
 
 class Family(Entity):
     def __init__(self, campaign_id, json_data):
-        super().__init__(self, campaign_id, json_data)
+        super().__init__(campaign_id, json_data)
         self.location_id = json_data.get("location_id")
         self.parent_family_id = json_data.get("family_id")
         self.entity_type = "families"
@@ -155,7 +155,7 @@ class Family(Entity):
 
 class Calendar(Entity):
     def __init__(self, campaign_id, json_data):
-        super().__init__(self, campaign_id, json_data)
+        super().__init__(campaign_id, json_data)
         self.date = json_data.get("date")
         if json_data.get("has_leap_year"):
             self.leap_year = {
@@ -198,7 +198,7 @@ class Calendar(Entity):
 
 class Item(Entity):
     def __init__(self, campaign_id, json_data):
-        super().__init__(self, campaign_id, json_data)
+        super().__init__(campaign_id, json_data)
         self.location_id = json_data.get("location_id")
         self.character_id = json_data.get("character_id")
         self.entity_type = "items"
@@ -206,7 +206,7 @@ class Item(Entity):
 
 class Journal(Entity):
     def __init__(self, campaign_id, json_data):
-        super().__init__(self, campaign_id, json_data)
+        super().__init__(campaign_id, json_data)
         self.date = json_data.get("date")
         self.character_id = json_data.get("character_id")
         self.entity_type = "journals"
@@ -214,7 +214,7 @@ class Journal(Entity):
 
 class Organisation(Entity):
     def __init__(self, campaign_id, json_data):
-        super().__init__(self, campaign_id, json_data)
+        super().__init__(campaign_id, json_data)
         self.location_id = json_data.get("location_id")
         self.members = json_data.get("members")
         self.entity_type = "organisations"
@@ -222,7 +222,7 @@ class Organisation(Entity):
 
 class Quest(Entity):
     def __init__(self, campaign_id, json_data):
-        super().__init__(self, campaign_id, json_data)
+        super().__init__(campaign_id, json_data)
         self.character_id = json_data.get("character_id")
         self.characters = json_data.get("characters")
         self.is_completed = json_data.get("is_completed")
@@ -233,28 +233,28 @@ class Quest(Entity):
 
 class Tag(Entity):
     def __init__(self, campaign_id, json_data):
-        super().__init__(self, campaign_id, json_data)
+        super().__init__(campaign_id, json_data)
         self.tag_id = json_data.get("tag_id")
         self.entity_type = "tags"
 
 
 class Note(Entity):
     def __init__(self, campaign_id, json_data):
-        super().__init__(self, campaign_id, json_data)
+        super().__init__(campaign_id, json_data)
         # self.is_pinned = json_data.get('is_pinned')
         self.entity_type = "notes"
 
 
 class Race(Entity):
     def __init__(self, campaign_id, json_data):
-        super().__init__(self, campaign_id, json_data)
+        super().__init__(campaign_id, json_data)
         self.parent_race_id = json_data.get("race_id")
         self.entity_type = "races"
 
 
 class Ability(Entity):
     def __init__(self, campaign_id, json_data):
-        super().__init__(self, campaign_id, json_data)
+        super().__init__(campaign_id, json_data)
         self.parent_ability_id = json_data.get("ability_id")
         self.charges = json_data.get("charges")
         self.entity_type = "abilities"
@@ -1122,7 +1122,7 @@ class KankaView(commands.Cog):
                 if not await self._check_private(ctx.guild, loc):
                     locations.append(loc.link(lang))
             if locations:
-                em.add_field(name="Locations", value=creature.locations)
+                em.add_field(name="Locations", value=", ".join(locations))
 
         await self._send(ctx, em)
         return True
