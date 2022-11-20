@@ -3,6 +3,7 @@ import discord
 import aiohttp
 from markdownify import markdownify as md
 import logging
+from asyncio import sleep
 
 DEFAULT_SETTINGS = {"token": None, "language": "en", "hide_private": True}
 REQUEST_PATH = "https://kanka.io/api/1.0/"
@@ -319,6 +320,10 @@ class KankaView(commands.Cog):
                 return False
             return True
         elif r.status == 404:
+            self.log.debug(f"404 for url {r.url}")
+            return False
+        elif r.status == 429:
+            self.log.warning("Exceeded Kanka's ratelimit")
             return False
         else:
             self.log.warning(
@@ -452,9 +457,14 @@ class KankaView(commands.Cog):
                     page=page,
                 )
             ) as r:
-                if not await self._verify_response(r):
+                if r.status == 429:
+                    self.log.info("Exceeded Kanka's ratelimit. Sleeping.")
+                    await sleep(30)
+                    continue
+                elif not await self._verify_response(r):
                     self.log.warning("Error while caching, aborting.")
                     return
+
                 j = await r.json()
 
                 # Use meta element page count instead?
@@ -466,6 +476,8 @@ class KankaView(commands.Cog):
                         entity.entity_type = entity_type
                         CACHE[entity_type][entity.id] = entity
                     page += 1
+
+            await sleep(2)
 
     async def _parse_entry(self, ctx, parent):
         # get the entity's entry
@@ -542,7 +554,7 @@ class KankaView(commands.Cog):
                     await ctx.send(MSG_ENTITY_NOT_FOUND)
                 return None
 
-    async def _display_entity(self, ctx, entity, alert=True):
+    async def _display_entity(self, ctx, entity: Entity, alert=True):
         """Generate basic embed for any entity type"""
         # TODO: Attributes and relations
         if entity is None:
@@ -556,7 +568,7 @@ class KankaView(commands.Cog):
         lang = await self._language(ctx)
 
         em = discord.Embed(
-            title=entity.name,
+            title=f"{entity.name} :lock:" if entity.is_private else entity.name,
             description=await self._parse_entry(ctx, entity),
             url=entity.link(lang=lang, pretty=False),
             colour=discord.Color.blue(),
