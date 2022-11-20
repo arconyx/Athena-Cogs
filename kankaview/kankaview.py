@@ -429,6 +429,7 @@ class KankaView(commands.Cog):
         await self._cache_entity_by_type(campaign_id, "tags")
         await self._cache_entity_by_type(campaign_id, "races")
         await self._cache_entity_by_type(campaign_id, "abilities")
+        await self._cache_entity_by_type(campaign_id, "creatures")
 
     async def _cache_entity_by_type(self, campaign_id, entity_type: str):
         # API will only load 15-100 entities at a time.
