@@ -313,23 +313,23 @@ class KankaView(commands.Cog):
 
     async def _verify_response(self, r: aiohttp.ClientResponse, check_json=True):
         if r.status == 200:
-            if check_json and "data" not in r.json():
+            if check_json and "data" not in await r.json():
                 self.log.debug(f"Data key not in reponse to query {r.url}")
-                self.log.debug(f"Response is {r.json()}")
+                self.log.debug(f"Response is {await r.json()}")
                 return False
             return True
         elif r.status == 404:
             return False
         else:
-            await self.log.warning(
-                "Unable to complete request. Server returned status code {r.status}."
+            self.log.warning(
+                f"Unable to complete request. Server returned status code {r.status}."
             )
             return False
 
     async def _get_campaigns_list(self):
         await self._set_headers()
         async with self.session.get(REQUEST_PATH + "campaigns") as r:
-            if not self._verify_response(r):
+            if not await self._verify_response(r):
                 return None
             j = await r.json()
             return [Campaign(campaign) for campaign in j["data"]]
@@ -339,7 +339,7 @@ class KankaView(commands.Cog):
         async with self.session.get(
             "{base_url}campaigns/{id}".format(base_url=REQUEST_PATH, id=id)
         ) as r:
-            if not self._verify_response(r):
+            if not await self._verify_response(r):
                 return None
             j = await r.json()
             return Campaign(j["data"])
@@ -363,7 +363,7 @@ class KankaView(commands.Cog):
         async with self.session.get(
             f"{REQUEST_PATH}campaigns/{campaign_id}/{entity_type}/{entity_id}"
         ) as r:
-            if not self._verify_response(r):
+            if not await self._verify_response(r):
                 return None
             j = await r.json()
 
@@ -451,7 +451,7 @@ class KankaView(commands.Cog):
                     page=page,
                 )
             ) as r:
-                if not self._verify_response(r):
+                if not await self._verify_response(r):
                     self.log.warning("Error while caching, aborting.")
                     return
                 j = await r.json()
@@ -503,7 +503,7 @@ class KankaView(commands.Cog):
         async with self.session.get(
             f"{REQUEST_PATH}campaigns/{cmpgn_id}/search/{query}"
         ) as r:
-            if not self._verify_response(r):
+            if not await self._verify_response(r):
                 return None
 
             j = await r.json()
@@ -602,6 +602,11 @@ class KankaView(commands.Cog):
     async def list_campaigns(self, ctx):
         """Lists campaigns the bot has access to."""
         campaigns = await self._get_campaigns_list()
+
+        if not campaigns:
+            await ctx.send("Unable to fetch campaigns. Check your API token is valid.")
+            return
+
         em = discord.Embed(
             title="Campaigns List",
             description="{} campaigns found".format(len(campaigns)),
