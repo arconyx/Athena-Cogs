@@ -226,7 +226,7 @@ class Quest(Entity):
         self.character_id = json_data.get("character_id")
         self.characters = json_data.get("characters")
         self.is_completed = json_data.get("is_completed")
-        self.locations = json_data.get("locations")
+        self.elements = json_data.get("elements")
         self.parent_quest_id = json_data.get("quest_id")
         self.entity_type = "quests"
 
@@ -967,7 +967,7 @@ class KankaView(commands.Cog):
         if id is None:
             return False
 
-        quest = await self._get_entity(await self._active(ctx), "quests", id)
+        quest: Quest = await self._get_entity(await self._active(ctx), "quests", id)
 
         em = await self._display_entity(ctx, quest, alert)
         if em is None:
@@ -991,7 +991,35 @@ class KankaView(commands.Cog):
             )
             em.add_field(name="Parent Quest", value=parent.link(lang))
 
-        em.add_field(name="Locations", value=quest.locations)
+        if quest.elements:
+            elements = []
+            for el in quest.elements:
+                name = None
+                url = None
+
+                if el.get("entity_id"):
+                    async with self.session.get(
+                        f"{REQUEST_PATH}campaigns/{cmpgn_id}/entities/{el['entity_id']}"
+                    ) as r:
+                        if not await self._verify_response(r):
+                            continue
+                        j = await r.json()
+                        j = j["data"]
+
+                        self.log.debug(f"Get from {r.url} with status {r.status}")
+                        self.log.debug(j)
+
+                        name = j["name"]
+                        url = j["child"]["urls"]["view"]
+                if el.get("name"):
+                    name = el["name"]
+
+                link = f"[{name}]({url})" if url else name
+
+                elements.append(link)
+
+            if elements:
+                em.add_field(name="Elements", value=", ".join(elements))
 
         await self._send(ctx, em)
         return True
