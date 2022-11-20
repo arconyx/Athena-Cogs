@@ -36,7 +36,7 @@ class Campaign:
         self.created_at = json_data.get("created_at")
         self.updated_at = json_data.get("updated_at")
         self.members = json_data.get("members")
-        self.type = "campaign"
+        self.entity_type = "campaign"
 
     def link(self, lang="en", pretty=True):  # TODO: Improve language support?
         link = f"https://kanka.io/{lang}/campaign/{self.id}/campaign"
@@ -96,7 +96,7 @@ class Entity:
         self.tags = json_data.get("tags")
         self.created_at = json_data.get("created_at")
         self.updated_at = json_data.get("updated_at")
-        self.kind = json_data.get("type")
+        self.type_ = json_data.get("type")
 
         self.files = {}
         if "entity_files" in json_data:
@@ -108,7 +108,8 @@ class Entity:
 
     def link(self, lang="en", pretty=True):  # TODO: Improve language support?
         link = (
-            f"https://kanka.io/{lang}/campaign/{self.campaign_id}/{self.type}/{self.id}"
+            f"https://kanka.io/{lang}/campaign/"
+            f"{self.campaign_id}/{self.entity_type}/{self.id}"
         )
         return f"[{self.name}]({link})" if pretty else link
 
@@ -123,7 +124,7 @@ class Character(Entity):
         self.race_id = json_data.get("race_id")
         self.sex = json_data.get("sex")
         self.title = json_data.get("title")
-        self.type = "characters"
+        self.entity_type = "characters"
 
 
 class Location(Entity):
@@ -133,7 +134,7 @@ class Location(Entity):
         self.map = json_data.get("map")
         if "https://kanka.io/images/defaults" in self.map:
             self.map = None
-        self.type = "locations"
+        self.entity_type = "locations"
 
 
 class Event(Entity):
@@ -141,7 +142,7 @@ class Event(Entity):
         super().__init__(self, campaign_id, json_data)
         self.date = json_data.get("date")
         self.location_id = json_data.get("location_id")
-        self.type = "events"
+        self.entity_type = "events"
 
 
 class Family(Entity):
@@ -149,7 +150,7 @@ class Family(Entity):
         super().__init__(self, campaign_id, json_data)
         self.location_id = json_data.get("location_id")
         self.parent_family_id = json_data.get("family_id")
-        self.type = "families"
+        self.entity_type = "families"
 
 
 class Calendar(Entity):
@@ -172,7 +173,7 @@ class Calendar(Entity):
         self.suffix = json_data.get("suffix")
         self.weekdays = json_data.get("weekdays")
         self.years = json_data.get("years")
-        self.type = "calendars"
+        self.entity_type = "calendars"
 
     def get_month_names(self):
         names = ""
@@ -200,7 +201,7 @@ class Item(Entity):
         super().__init__(self, campaign_id, json_data)
         self.location_id = json_data.get("location_id")
         self.character_id = json_data.get("character_id")
-        self.type = "items"
+        self.entity_type = "items"
 
 
 class Journal(Entity):
@@ -208,7 +209,7 @@ class Journal(Entity):
         super().__init__(self, campaign_id, json_data)
         self.date = json_data.get("date")
         self.character_id = json_data.get("character_id")
-        self.type = "journals"
+        self.entity_type = "journals"
 
 
 class Organisation(Entity):
@@ -216,7 +217,7 @@ class Organisation(Entity):
         super().__init__(self, campaign_id, json_data)
         self.location_id = json_data.get("location_id")
         self.members = json_data.get("members")
-        self.type = "organisations"
+        self.entity_type = "organisations"
 
 
 class Quest(Entity):
@@ -227,28 +228,28 @@ class Quest(Entity):
         self.is_completed = json_data.get("is_completed")
         self.locations = json_data.get("locations")
         self.parent_quest_id = json_data.get("quest_id")
-        self.type = "quests"
+        self.entity_type = "quests"
 
 
 class Tag(Entity):
     def __init__(self, campaign_id, json_data):
         super().__init__(self, campaign_id, json_data)
         self.tag_id = json_data.get("tag_id")
-        self.type = "tags"
+        self.entity_type = "tags"
 
 
 class Note(Entity):
     def __init__(self, campaign_id, json_data):
         super().__init__(self, campaign_id, json_data)
         # self.is_pinned = json_data.get('is_pinned')
-        self.type = "notes"
+        self.entity_type = "notes"
 
 
 class Race(Entity):
     def __init__(self, campaign_id, json_data):
         super().__init__(self, campaign_id, json_data)
         self.parent_race_id = json_data.get("race_id")
-        self.type = "races"
+        self.entity_type = "races"
 
 
 class Ability(Entity):
@@ -256,7 +257,7 @@ class Ability(Entity):
         super().__init__(self, campaign_id, json_data)
         self.parent_ability_id = json_data.get("ability_id")
         self.charges = json_data.get("charges")
-        self.type = "abilities"
+        self.entity_type = "abilities"
 
 
 class KankaView(commands.Cog):
@@ -419,7 +420,7 @@ class KankaView(commands.Cog):
         await self._cache_entity_by_type(campaign_id, "races")
         await self._cache_entity_by_type(campaign_id, "abilities")
 
-    async def _cache_entity_by_type(self, campaign_id, entity_type):
+    async def _cache_entity_by_type(self, campaign_id, entity_type: str):
         # API will only load 15-100 entities at a time.
         # Increment the page and load more if needed
         done = False
@@ -451,7 +452,7 @@ class KankaView(commands.Cog):
                 else:
                     for i in range(len(j["data"])):
                         entity = Entity(campaign_id, j["data"][i])
-                        entity.type = entity_type
+                        entity.entity_type = entity_type
                         CACHE[entity_type][entity.id] = entity
                     page += 1
 
@@ -488,7 +489,7 @@ class KankaView(commands.Cog):
         # the ID has been loaded
         return CACHE[entity_type][entity_id]
 
-    async def _search(self, cmpgn_id, query, kind=None):
+    async def _search(self, cmpgn_id, query, entity_type=None):
         async with self.session.get(
             f"{REQUEST_PATH}campaigns/{cmpgn_id}/search/{query}"
         ) as r:
@@ -503,9 +504,9 @@ class KankaView(commands.Cog):
             self.log.debug(j)
 
             # if they've specified a type, look for it
-            if kind and j.get("data"):
+            if entity_type and j.get("data"):
                 for result in j.get("data"):
-                    if result.get("type") == kind:
+                    if result.get("type") == entity_type:
                         return result
                 # if the loop ends with no matches the search couldn't find it
                 return None
@@ -517,12 +518,12 @@ class KankaView(commands.Cog):
     async def _check_private(self, guild, entity):
         return entity.is_private and await self.config.guild(guild).hide_private()
 
-    async def _process_display_input(self, ctx, input, kind, alert=True):
+    async def _process_display_input(self, ctx, input, entity_type, alert=True):
         try:
             id = int(input)
             return id
         except ValueError:
-            entity = await self._search(await self._active(ctx), input, kind=kind)
+            entity = await self._search(await self._active(ctx), input, entity_type)
             if entity is not None:
                 return entity["id"]
             else:
@@ -550,7 +551,7 @@ class KankaView(commands.Cog):
             colour=discord.Color.blue(),
         )
         em.set_image(url=entity.image)
-        em.add_field(name="Type", value=entity.kind)
+        em.add_field(name="Type", value=entity.type_)
 
         if entity.files:
             value = ""
@@ -1083,48 +1084,48 @@ class KankaView(commands.Cog):
             await ctx.send(MSG_ENTITY_NOT_FOUND)
             return False
 
-        kind = entity["type"]
+        entity_type = entity["type"]
         id = entity["id"]
 
         # We have to get the entity again
         # because the search endpoint gives truncated data
-        if kind == "character":
+        if entity_type == "character":
             await self.display_character(ctx, id)
             return
-        elif kind == "location":
+        elif entity_type == "location":
             await self.display_location(ctx, id)
             return
-        elif kind == "organisation":
+        elif entity_type == "organisation":
             await self.display_organisation(ctx, id)
             return
-        elif kind == "family":
+        elif entity_type == "family":
             await self.display_family(ctx, id)
             return
-        elif kind == "calendar":
+        elif entity_type == "calendar":
             await self.display_calendar(ctx, id)
             return
-        elif kind == "race":
+        elif entity_type == "race":
             await self.display_race(ctx, id)
             return
-        elif kind == "quest":
+        elif entity_type == "quest":
             await self.display_quest(ctx, id)
             return
-        elif kind == "journal":
+        elif entity_type == "journal":
             await self.display_journal(ctx, id)
             return
-        elif kind == "item":
+        elif entity_type == "item":
             await self.display_item(ctx, id)
             return
-        elif kind == "event":
+        elif entity_type == "event":
             await self.display_event(ctx, id)
             return
-        elif kind == "note":
+        elif entity_type == "note":
             await self.display_note(ctx, id)
             return
-        elif kind == "tag":
+        elif entity_type == "tag":
             await self.display_tag(ctx, id)
             return
-        elif kind == "ability":
+        elif entity_type == "ability":
             await self.display_ability(ctx, id)
             return
         else:
