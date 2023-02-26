@@ -132,7 +132,7 @@ class Location(Entity):
     def __init__(self, campaign_id, json_data):
         super().__init__(campaign_id, json_data)
         self.parent_location_id = json_data.get("parent_location_id")
-        self.map = json_data.get("map")
+        self.map = json_data.get("map", [])  # deprecated
         if "https://kanka.io/images/defaults" in self.map:
             self.map = None
         self.entity_type = "locations"
