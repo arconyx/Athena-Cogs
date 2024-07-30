@@ -1,6 +1,6 @@
 from .kankaview import KankaView
 
 
-def setup(bot):
+async def setup(bot):
     kv = KankaView(bot)
-    bot.add_cog(kv)
+    await bot.add_cog(kv)

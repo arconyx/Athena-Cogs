@@ -1,6 +1,6 @@
 from .inspire import Inspire
 
 
-def setup(bot):
+async def setup(bot):
     i = Inspire()
-    bot.add_cog(i)
+    await bot.add_cog(i)
