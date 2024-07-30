@@ -1,9 +1,10 @@
-from redbot.core import commands, Config, checks
-import discord
-import aiohttp
-from markdownify import markdownify as md
 import logging
 from asyncio import sleep
+
+import aiohttp
+import discord
+from markdownify import markdownify as md
+from redbot.core import Config, checks, commands
 
 DEFAULT_SETTINGS = {"token": None, "language": "en", "hide_private": True}
 REQUEST_PATH = "https://kanka.io/api/1.0/"
